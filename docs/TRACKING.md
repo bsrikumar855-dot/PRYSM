@@ -71,7 +71,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-35 | Valkey as the reference Redis-compatible engine; code limited to the Redis ≥ 7.2 command set; boot-time store config checks per role (ADR-0009) | M0 (compose) / M2 (checks) | [ ] |
 | F-36 | Pre-merge: WAITAOF (Valkey everysec/always, Redis 8.2 everysec) + Postgres outbox benchmarks run and recorded in ADR-0009 (`docs/adr/bench/*.mjs`) | 9.1 | [x] |
 | F-37 | SaaS managed stores: preferred option MemoryDB (streams + BullMQ) + ElastiCache Valkey (rate limits, cache, pub/sub). **No paid service approved; purchase decision at M4.** Confirm MemoryDB ack semantics + failover test before buying. Everything local until then | M4 (decision) | [ ] |
-| F-38 | Report the Valkey `WAITAOF`-under-`everysec` early-return bug upstream (ref redis/redis#13793). External action, owner decides | — | [ ] |
+| F-38 | Report the Valkey `WAITAOF`-under-`everysec` early-return bug upstream (ref redis/redis#13793). Draft with standalone repro: `docs/upstream/valkey-waitaof.md`. **Owner files it** | — | [~] drafted |
 
 ### 2.2 Identity & tenancy (§4 Auth, §6.9)
 | ID | Requirement | M | Status |
@@ -146,6 +146,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | G-12 | Contract tests against recorded real provider responses | M4 | [ ] |
 | G-13 | Benchmark suite committed; gate p95 added ≤ 30 ms @ 500 RPS/node — blocking nightly + non-blocking PR check until a dedicated runner exists | M4 | [ ] |
 | G-14 | Usage counters for metering (events, monitored apps) | M4 (capture) / M12 (billing export) | [ ] |
+| G-15 | Connection pooler (PgBouncer in transaction mode, or equivalent) in front of Postgres for the gateway's `strict_outbox` pool. Documented max-connections calculation, per the runbook: (1) **per gateway node** client pool = ⌈strict_RPS_per_node × 2 commits/request × p95_commit_latency_s × 1.5 headroom⌉ (Little's law); (2) **PgBouncer** `max_client_conn` ≥ Σ over gateway nodes of (1) at max autoscale; `default_pool_size` (server conns for the outbox role) = ⌈total strict_RPS × 2 × p95_commit_latency_s × 1.5⌉; (3) **Postgres** `max_connections` ≥ Σ PgBouncer server pools + api + workers + migrations + `superuser_reserved_connections`. A load test proves no pool exhaustion at 500 RPS/node | M4 | [ ] |
 
 ### 2.6 Assets, Findings, Remediation, Review (§5, §6.7)
 | ID | Requirement | M | Status |
@@ -238,6 +239,12 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | 2026-09-24 | Managed SaaS stores: preferred option recorded, purchase deferred to M4 (F-37) | Owner |
 | 2026-09-24 | LLM data-use hard requirement + attestation audit fields (ADR-0010) | Owner |
 | 2026-09-24 | Optional Rekor anchor destination (E-13, M11) | Owner |
+
+## 3a. Open questions (decide at the named milestone)
+
+| ID | Question | Decide at | How | Status |
+|---|---|---|---|---|
+| OQ-1 | Should **all** tenants' evidence events use the Postgres outbox (one path) instead of Redis Streams + outbox (two paths)? | M4 | Benchmark at realistic scale (target gateway fleet at 500 RPS/node, mixed tenant sizes) on the reference runner. Criteria: **throughput per Postgres node** (incl. WAL volume, autovacuum, replica lag), **cost** (IOPS/instance size vs a managed Redis-compatible store), **operational simplicity** (components, failure modes, runbooks), **hash-chain ordering complexity** (one source per shard vs merging stream + outbox in the single writer). Record the outcome in a new ADR that amends ADR-0004/0009 | Open |
 
 ## 4. TODO registry
 Every `TODO(T-###)` in the codebase must appear here. CI fails on a `TODO` that has no ID or isn't registered.
