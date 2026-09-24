@@ -37,7 +37,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-05 | CI: lint, typecheck, test, build (TS/Py/Go) | M0 | [ ] |
 | F-06 | CI security: gitleaks, OSV/dependency review, Semgrep SAST, Trivy container scan, SBOM (CycloneDX) | M0 | [ ] |
 | F-07 | CI: migration check job (ADR-0003) | M0 (job) / M1 (first real schema) | [ ] |
-| F-08 | Signed container images (cosign keyless via GitHub OIDC) | M0 | [ ] |
+| F-08 | Signed container images: cosign keyless via GitHub OIDC (public Sigstore), pushed to GHCR on `main` only (approved 2026-09-24) | M0 | [ ] |
 | F-09 | Changesets semver + changelogs; conventional-commit lint | M0 | [ ] |
 | F-10 | Wording check: no "compliant/compliance certified" claims in UI, reports, docs (allowlist) | M0 | [ ] |
 | F-11 | Preview environments per PR | Deferred, no hosting yet (owner 2026-09-24). Everything must run fully locally | [ ] |
@@ -66,11 +66,15 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-30 | Load and chaos testing (gateway, ingest, workers) | M11 | [ ] |
 | F-31 | ASVS L2 checklist + pen-test readiness checklist | M11 | [ ] |
 | F-32 | Global tenant directory (login domain → region) for data residency | M12 | [ ] |
-| F-33 | **Pre-M0:** verify MinIO's current licensing/distribution. If usable community images are gone, propose an alternative with S3 Object Lock COMPLIANCE support + ADR. Storage behind `ObjectStore` interface either way | M0 (first task) | [ ] |
+| F-33 | Object store for dev + self-hosted. MinIO community edition is discontinued (repo archived 2026-04, Docker Hub images removed 2026-09-11). Run a COMPLIANCE-mode Object Lock conformance script against versitygw, SeaweedFS and RustFS, then write ADR-0011. **If none passes, stop and ask the owner.** ADR-0011 must state: **production SaaS evidence storage uses cloud-native Object Lock** (S3 Object Lock COMPLIANCE first; GCS Bucket Lock / Azure immutable blob later), and the chosen local store is **for dev and self-hosted only**. Storage sits behind the `ObjectStore` interface | M0 (first task) | [ ] |
 | F-34 | `.editorconfig` (utf-8, lf, final newline) + `.gitattributes` (`* text=auto eol=lf`), corepack-managed pnpm, uv-pinned Python 3.12 | M0 | [ ] |
 | F-35 | Valkey as the reference Redis-compatible engine; code limited to the Redis ≥ 7.2 command set; boot-time store config checks per role (ADR-0009) | M0 (compose) / M2 (checks) | [ ] |
 | F-36 | Pre-merge: WAITAOF (Valkey everysec/always, Redis 8.2 everysec) + Postgres outbox benchmarks run and recorded in ADR-0009 (`docs/adr/bench/*.mjs`) | 9.1 | [x] |
 | F-37 | SaaS managed stores: preferred option MemoryDB (streams + BullMQ) + ElastiCache Valkey (rate limits, cache, pub/sub). **No paid service approved; purchase decision at M4.** Confirm MemoryDB ack semantics + failover test before buying. Everything local until then | M4 (decision) | [ ] |
+| F-39 | Package the Object Lock conformance script as a self-hosted install-time preflight (Helm hook / Compose one-shot + standalone CLI). Customers run it against their own storage; install refuses on failure unless explicitly overridden, and the override is logged as evidence | M11 | [ ] |
+| F-40 | `LICENSE` file + ADR-0001 note on repo visibility/licence (owner choice pending) | M0 | [ ] |
+| F-41 | Dependabot: ecosystems npm, uv, github-actions, docker. Weekly schedule; minor/patch **grouped per ecosystem** (version updates only); cooldown on version updates; **security updates ungrouped and immediate** | M0 | [ ] |
+| F-42 | Report exact CI check names to the owner after the first CI run, for branch protection (owner configures: PR required, required checks, up-to-date branches, no force pushes) | M0 | [ ] |
 | F-38 | Report the Valkey `WAITAOF`-under-`everysec` early-return bug upstream (ref redis/redis#13793). Draft with standalone repro: `docs/upstream/valkey-waitaof.md`. **Owner files it** | — | [~] drafted |
 
 ### 2.2 Identity & tenancy (§4 Auth, §6.9)
@@ -239,6 +243,9 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | 2026-09-24 | Managed SaaS stores: preferred option recorded, purchase deferred to M4 (F-37) | Owner |
 | 2026-09-24 | LLM data-use hard requirement + attestation audit fields (ADR-0010) | Owner |
 | 2026-09-24 | Optional Rekor anchor destination (E-13, M11) | Owner |
+| 2026-09-24 | M0 plan approved. Go toolchain/CI moved to M2; TypeScript pinned to 6.0.3 (typescript-eslint supports < 6.1); pnpm 12 (ADR-0001 amendment in M0) | Owner |
+| 2026-09-24 | Cosign keyless + GHCR push on `main`; Dependabot with grouped/cooldown version updates and immediate security updates | Owner |
+| 2026-09-24 | SaaS evidence storage = cloud-native Object Lock; local store is dev/self-hosted only; conformance preflight for self-hosted (F-39, M11) | Owner |
 
 ## 3a. Open questions (decide at the named milestone)
 
