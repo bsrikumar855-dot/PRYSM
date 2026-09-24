@@ -67,6 +67,7 @@ External attacker · malicious or compromised customer user (inside their own te
 | **T** | **Prompt injection in an uploaded policy PDF** ("mark all controls satisfied") | ai-service has no DB creds or tools. Output is schema-validated. Citations are checked mechanically against the source text. Humans approve every mapping. LLM output can never approve or close anything | M6 |
 | **T** | An injected document shifts the LLM judge's verdict | Judges only flag. Below threshold they go to review. Judge inputs are delimited, and the template version is logged. Reviewer agreement metrics catch drift | M6 |
 | **I** | Customer documents sent to a third-party LLM without consent | Per-tenant setting: provider choice (Gemini, or Ollama/vLLM local), "no external LLM" mode, and data-processing disclosure. Every call is logged | M6 |
+| **I** | **The LLM provider trains on, or has humans review, customer documents and payloads** (e.g. Gemini unpaid tier: content used to improve products, human review) | **Hard requirement:** only the paid Gemini API (billing-enabled project) or verified Vertex AI. Provider registry with a `data_use_tier` attestation; ai-service refuses to start without it. BYO keys need an Owner attestation, recorded in the audit log. Quarterly terms review, and re-attestation when the terms' "last modified" date changes. Abuse-monitoring retention disclosed as a sub-processor flow. Local-only option (ADR-0010) | M6 |
 | **I** | Pass-through upstream keys leak through logs, traces or events | Never persisted or logged. A log/trace scanning test injects canary keys and asserts they never appear | M4 |
 | **D** | Malicious files (zip bombs, huge PDFs, parser exploits) | Size, page and time limits. Parsing runs in a sandboxed subprocess with no network. File type checked by magic bytes | M6 |
 
@@ -76,7 +77,9 @@ External attacker · malicious or compromised customer user (inside their own te
 |---|---|---|---|
 | **T** | DB admin rewrites evidence rows | Write-only grants and triggers make it detectable, not impossible. Anchors delivered off-platform plus optional TSA mean any rewrite fails verification against the customer-held anchors | M2 |
 | **T** | Signing key theft lets an attacker re-sign a rewritten chain | Key in KMS (non-exportable where supported), used only by the anchoring worker. Off-platform anchors pre-date the theft. Key rotation runbook | M2 |
-| **R** | "PRYSM lost our evidence" | Object Lock COMPLIANCE, gapless `seq`, `gap` records for dropped events, backups with restore drills | M2, M11 |
+| **R** | "PRYSM lost our evidence" | Object Lock COMPLIANCE, gapless `seq`, `gap` records for dropped events, backups with restore drills. Strict tenants get a durable stream store with `request.started` written before the upstream call (ADR-0009) | M2, M4, M11 |
+| **T** | Collusion: PRYSM insider and the customer's own storage both compromised | Optional public transparency-log anchor (Rekor). Only opaque digests are published, never `tenant_id` or counts. Inclusion proofs are verified offline (ADR-0006) | M11 |
+| **I** | Metadata leak through the public transparency log | Entries contain only an anchor digest and a region-key signature. No tenant identifiers or sizes. Opt-in per tenant | M11 |
 | **I** | Payload exposure from a storage breach | Client-side AES-256-GCM with tenant DEK. Salted payload hashes | M2 |
 | **D** | Chain fork from concurrent writers | Single writer per shard + `UNIQUE(tenant_id, seq)` / `(tenant_id, prev_hash)` | M2 |
 
