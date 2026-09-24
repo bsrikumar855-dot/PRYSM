@@ -19,8 +19,8 @@ Self-hosted customers have to run whatever we pick.
 
 ## Consequences
 - `appendfsync everysec` can lose up to about 1 s of events if Redis crashes before they're persisted. Those events never reach the chain, so this doesn't break tamper-evidence, but it is a completeness gap. Mitigations: a replica, the spool, and gap records. **Accepted as the default (owner, 2026-09-24).**
-- **Per-tenant "strict durability" option: see ADR-0009.** The earlier design (`WAITAOF` on the shared `everysec` instance, "1–10 ms") was wrong. On an `everysec` instance, `WAITAOF` waits for the next once-per-second fsync, so 0–1000 ms. Strict tenants' events go to a separate durable stream store (Valkey with `appendfsync always` self-hosted, MemoryDB proposed for SaaS) over a dedicated connection pool, with their own latency budget outside the 30 ms gateway budget.
-- The "≤ 1 s" loss window applies to self-hosted Valkey/Redis with AOF `everysec`. ElastiCache doesn't support AOF, so SaaS durability is covered in ADR-0009.
+- **Per-tenant "strict durability" option: see ADR-0009.** The earlier design (`WAITAOF` on the shared `everysec` instance, "1–10 ms") was wrong. On an `everysec` instance, `WAITAOF` waits for the next once-per-second fsync. A correct implementation (Redis 8.2) measured ≈ 1 s per call, and Valkey 8.1 returns early without fsyncing (an upstream bug). Strict tenants' durable events go through a **Postgres transactional outbox** (`synchronous_commit=on`, dedicated INSERT-only pool). The shard's ingest worker moves them into the chain in the same transaction that deletes them. They have their own latency budget outside the 30 ms gateway budget. PRYSM uses no `WAITAOF`.
+- The "≤ 1 s" loss window applies to self-hosted Valkey/Redis with AOF `everysec`. ElastiCache doesn't support AOF, so the preferred SaaS option (MemoryDB for streams, with the purchase decision deferred to M4) is covered in ADR-0009.
 - The fixed shard count caps per-tenant ingest at one consumer. Batched appends make that thousands of events per second per tenant, which is well above target. Resharding is a documented operation.
 
 ## Alternatives

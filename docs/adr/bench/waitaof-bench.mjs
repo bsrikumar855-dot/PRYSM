@@ -123,7 +123,7 @@ async function main() {
   const c = await connect(host, Number(port));
   const [, fsync] = await c('CONFIG', 'GET', 'appendfsync');
   const info = await c('INFO', 'server');
-  const version = /(?:valkey|redis)_version:(\S+)/.exec(info)?.[0];
+  const version = (/valkey_version:(\S+)/.exec(info) ?? /redis_version:(\S+)/.exec(info))?.[0];
   await c('DEL', 'bench:events');
   c('CLOSE');
   const N = Number(n);

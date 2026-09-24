@@ -49,6 +49,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-17 | Provider-agnostic LLM adapter for PRYSM's own AI, logging model/template version/input hash/output. Initial providers: Google Gemini API + Ollama / OpenAI-compatible local (vLLM) | M6 | [ ] |
 | F-17a | LLM-off mode: all deterministic features work with no LLM; LLM-dependent features marked unavailable (tested) | M6 | [ ] |
 | F-17b | **Hard requirement:** only no-training provider tiers (paid Gemini API / verified Vertex AI). Provider registry with `data_use_tier` attestation, startup refusal, BYO-key Owner attestation, quarterly terms-review runbook (ADR-0010) | M6 | [ ] |
+| F-17d | Attestation audit entry + evidence record: who (user, role, tenant/platform, session, MFA), when (UTC), which key (`SHA-256("prysm.keyfp.v1\n" ‖ key)` fingerprint, never the raw key), provider, project ID, tier, terms URL + date; invalidated on key rotation or terms change (ADR-0010) | M6 | [ ] |
 | F-17c | Verify Vertex AI data-governance terms and record them in ADR-0010 before enabling the Vertex adapter | M6 | [ ] |
 | F-18 | Public REST API OpenAPI 3.1, generated + committed + drift/breaking check (ADR-0002) | M1 | [ ] |
 | F-19 | CSP + secure headers (api, web) | M1 | [ ] |
@@ -68,8 +69,9 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-33 | **Pre-M0:** verify MinIO's current licensing/distribution. If usable community images are gone, propose an alternative with S3 Object Lock COMPLIANCE support + ADR. Storage behind `ObjectStore` interface either way | M0 (first task) | [ ] |
 | F-34 | `.editorconfig` (utf-8, lf, final newline) + `.gitattributes` (`* text=auto eol=lf`), corepack-managed pnpm, uv-pinned Python 3.12 | M0 | [ ] |
 | F-35 | Valkey as the reference Redis-compatible engine; code limited to the Redis ≥ 7.2 command set; boot-time store config checks per role (ADR-0009) | M0 (compose) / M2 (checks) | [ ] |
-| F-36 | **Pre-merge of the architecture PR:** run `docs/adr/bench/waitaof-bench.mjs` on Valkey (everysec + always) and record p50/p95 in ADR-0009 | 9.1 | [ ] |
-| F-37 | SaaS store split: MemoryDB (event streams + BullMQ) + ElastiCache Valkey (rate limits, cache, pub/sub). **Needs owner approval (new paid services)**; confirm MemoryDB ack semantics + failover test | M4 | [ ] |
+| F-36 | Pre-merge: WAITAOF (Valkey everysec/always, Redis 8.2 everysec) + Postgres outbox benchmarks run and recorded in ADR-0009 (`docs/adr/bench/*.mjs`) | 9.1 | [x] |
+| F-37 | SaaS managed stores: preferred option MemoryDB (streams + BullMQ) + ElastiCache Valkey (rate limits, cache, pub/sub). **No paid service approved; purchase decision at M4.** Confirm MemoryDB ack semantics + failover test before buying. Everything local until then | M4 (decision) | [ ] |
+| F-38 | Report the Valkey `WAITAOF`-under-`everysec` early-return bug upstream (ref redis/redis#13793). External action, owner decides | — | [ ] |
 
 ### 2.2 Identity & tenancy (§4 Auth, §6.9)
 | ID | Requirement | M | Status |
@@ -101,7 +103,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | E-09 | Audit bundle format (machine-readable) + export | M2 (format) / M9 (UI, PDF) | [ ] |
 | E-10 | Crypto-shredding on tenant offboarding + runbook | M11 | [ ] |
 | E-11 | Key rotation runbook (signing + DEKs) | M2 | [ ] |
-| E-12 | Per-tenant strict durability: durable stream store (Valkey `appendfsync always` self-hosted / MemoryDB SaaS), dedicated connection pool, `request.started` before upstream + `request.completed` before terminal chunk, own latency budget (proposed ≤ 50 ms p95 total added), separate nightly bench scenario (ADR-0009) | M4 | [ ] |
+| E-12 | Per-tenant strict durability via Postgres transactional outbox: `strict_outbox` + RLS, `prysm_gateway_outbox` INSERT-only role, dedicated pool, `synchronous_commit=on`; `request.started` committed before upstream, `request.completed` before terminal chunk; shard ingest worker appends + deletes in one transaction; budget ≤ 50 ms p95 TTFB / ≤ 20 ms terminal chunk; separate nightly bench scenario (ADR-0009) | M4 (M2: table + relay) | [ ] |
 | E-13 | Optional Sigstore Rekor anchor destination (opaque digests only), inclusion proofs verified offline by `verifier-cli`. `AnchorDestination` interface in M2 | M11 | [ ] |
 
 ### 2.4 Policy Engine & Detectors (§6.4, §6.3 detectors)
@@ -231,9 +233,10 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | 2026-09-24 | No AWS account yet: Terraform validated, not applied | Owner |
 | 2026-09-24 | PRYSM LLM providers: Gemini API + Ollama/OpenAI-compatible local; LLM-off mode required | Owner |
 | 2026-09-24 | Per-tenant strict durability (WAITAOF) added (E-12) | Owner |
-| 2026-09-24 | Strict durability redesigned: WAITAOF on `everysec` is 0–1000 ms, so strict uses a separate durable store with its own budget (ADR-0009, proposed) | Pending owner |
-| 2026-09-24 | Valkey chosen as the reference engine (ADR-0009, proposed) | Pending owner |
-| 2026-09-24 | LLM data-use hard requirement (ADR-0010, proposed) | Pending owner |
+| 2026-09-24 | Strict durability: Postgres transactional outbox chosen over a second `always` Valkey (measured: p95 16.4 vs 32.7 ms at 50 conns). No WAITAOF anywhere (ADR-0009) | Owner |
+| 2026-09-24 | Valkey chosen as the reference engine (ADR-0009) | Owner |
+| 2026-09-24 | Managed SaaS stores: preferred option recorded, purchase deferred to M4 (F-37) | Owner |
+| 2026-09-24 | LLM data-use hard requirement + attestation audit fields (ADR-0010) | Owner |
 | 2026-09-24 | Optional Rekor anchor destination (E-13, M11) | Owner |
 
 ## 4. TODO registry
