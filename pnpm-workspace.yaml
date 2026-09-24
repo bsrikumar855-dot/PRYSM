@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+
+saveExact: true
+engineStrict: true
+# Supply chain: don't resolve versions published less than a day ago; build scripts need explicit approval.
+minimumReleaseAge: 1440
+strictDepBuilds: true
+allowBuilds:
+  protobufjs: false # postinstall only checks CLI deps; runtime needs no build

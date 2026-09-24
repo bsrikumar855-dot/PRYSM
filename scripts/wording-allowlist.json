@@ -1,0 +1,8 @@
+[
+  { "path": "CLAUDE.md", "contains": "Never say \"compliant\"", "reason": "States the rule itself" },
+  { "path": "docs/ARCHITECTURE.md", "contains": "no \"compliant / compliance certified\" claims", "reason": "States the rule itself" },
+  { "path": "docs/TRACKING.md", "contains": "no \"compliant/compliance certified\" claims", "reason": "States the rule itself" },
+  { "path": "scripts/check-wording.mjs", "contains": "", "reason": "Defines the forbidden patterns" },
+  { "path": "scripts/check-wording.test.mjs", "contains": "", "reason": "Test fixtures for the forbidden patterns" },
+  { "path": "scripts/wording-allowlist.json", "contains": "", "reason": "Quotes the allowed lines above" }
+]
