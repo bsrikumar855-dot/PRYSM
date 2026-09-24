@@ -72,7 +72,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-36 | Pre-merge: WAITAOF (Valkey everysec/always, Redis 8.2 everysec) + Postgres outbox benchmarks run and recorded in ADR-0009 (`docs/adr/bench/*.mjs`) | 9.1 | [x] |
 | F-37 | SaaS managed stores: preferred option MemoryDB (streams + BullMQ) + ElastiCache Valkey (rate limits, cache, pub/sub). **No paid service approved; purchase decision at M4.** Confirm MemoryDB ack semantics + failover test before buying. Everything local until then | M4 (decision) | [ ] |
 | F-39 | Package the Object Lock conformance script as a self-hosted install-time preflight (Helm hook / Compose one-shot + standalone CLI). Customers run it against their own storage; install refuses on failure unless explicitly overridden, and the override is logged as evidence | M11 | [ ] |
-| F-40 | `LICENSE` file + ADR-0001 note on repo visibility/licence (owner choice pending) | M0 | [ ] |
+| F-40 | Public repo, **Apache-2.0**: `LICENSE` (full Apache-2.0 text), `NOTICE`, `"license": "Apache-2.0"` in every package manifest, ADR-0001 note (owner decision 2026-09-24) | M0 | [ ] |
 | F-41 | Dependabot: ecosystems npm, uv, github-actions, docker. Weekly schedule; minor/patch **grouped per ecosystem** (version updates only); cooldown on version updates; **security updates ungrouped and immediate** | M0 | [ ] |
 | F-42 | Report exact CI check names to the owner after the first CI run, for branch protection (owner configures: PR required, required checks, up-to-date branches, no force pushes) | M0 | [ ] |
 | F-38 | Report the Valkey `WAITAOF`-under-`everysec` early-return bug upstream (ref redis/redis#13793). Draft with standalone repro: `docs/upstream/valkey-waitaof.md`. **Owner files it** | — | [~] drafted |
