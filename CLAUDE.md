@@ -10,7 +10,7 @@ PRYSM is a continuous AI compliance operating system: it turns AI rules (laws, s
 - **PRYSM's own LLM:** provider-agnostic adapter. Initial providers are Google Gemini API and Ollama, plus any OpenAI-compatible local endpoint (vLLM). Every deterministic feature must work with no LLM configured. LLM-dependent features are shown as unavailable, never silently skipped.
 - **LLM findings:** at or above threshold → `pending_confirmation` only, excluded from control-status scores until a human confirms. Never passes or closes a control.
 - **Regulatory content:** owner-supplied facts (e.g. EU AI Act Omnibus dates) are recorded as unverified until checked against the official source (EUR-Lex, RBI, SEBI, MeitY). ISO 42001 ships clause IDs only.
-- **Storage** sits behind the `ObjectStore` interface. MinIO's status is checked before M0 (TRACKING F-33).
+- **Storage** sits behind the `ObjectStore` interface. SaaS uses cloud-native Object Lock. SeaweedFS is for dev, CI and self-hosted only. Any store must pass `infra/objectstore-conformance/conformance.sh` (ADR-0011).
 - **Redis-compatible store:** Valkey is the reference engine. Use only the Redis ≥ 7.2 command set. **Never use `WAITAOF`.** Valkey returns early under `everysec`, and correct implementations take about 1 s. Strict durability uses the Postgres outbox (ADR-0009).
 - **No paid or managed services are approved.** Everything runs locally until the M4 purchase decision.
 - **LLM data use:** customer data only goes to no-training tiers (paid Gemini API / verified Vertex AI). Never the free tier (ADR-0010).
@@ -50,7 +50,7 @@ docs/        ARCHITECTURE.md · adr/ · security/ · runbooks/ · api/ · TRACKI
 ```
 corepack enable && pnpm install     # Node 24 LTS, pnpm 10
 pnpm dev                            # all services with hot reload (needs docker compose deps)
-docker compose -f infra/docker/compose.dev.yml up -d   # postgres, redis, minio, otel
+docker compose -f infra/docker/compose.dev.yml up -d   # postgres, valkey, seaweedfs, otel-lgtm
 pnpm turbo run lint typecheck test  # everything, including Python and Go via wrapper scripts
 pnpm --filter @prysm/policy-engine test
 uv run --directory apps/ai-service pytest

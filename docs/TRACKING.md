@@ -31,7 +31,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | ID | Requirement | M | Status |
 |---|---|---|---|
 | F-01 | pnpm + Turborepo monorepo, uv workspace, Go module, shared configs (ADR-0001) | M0 | [ ] |
-| F-02 | Docker Compose dev env: Postgres 16 + pgvector, Redis (AOF, noeviction), MinIO with object lock, OTel/LGTM | M0 | [ ] |
+| F-02 | Docker Compose dev env: Postgres 16 + pgvector, Valkey (AOF, noeviction), SeaweedFS with Object Lock (ADR-0011), OTel/LGTM | M0 | [ ] |
 | F-03 | Service skeletons with `/healthz` (liveness) and `/readyz` (readiness), zod-validated config, graceful shutdown | M0 | [ ] |
 | F-04 | OpenTelemetry traces/metrics/logs in every service; JSON logs with `tenant_id` + `request_id`; payload-free log test | M0 | [ ] |
 | F-05 | CI: lint, typecheck, test, build (TS/Py/Go) | M0 | [ ] |
@@ -55,7 +55,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-19 | CSP + secure headers (api, web) | M1 | [ ] |
 | F-20 | SSRF-safe egress client shared by collectors and URL fetch | M6 | [ ] |
 | F-21 | Input validation at every boundary (zod/pydantic), with a lint rule against unvalidated route handlers | M0 | [ ] |
-| F-22 | Integration tests with Testcontainers (Postgres, Redis, MinIO) | M1 | [ ] |
+| F-22 | Integration tests with Testcontainers (Postgres, Valkey, SeaweedFS) | M1 | [ ] |
 | F-23 | Playwright e2e + axe accessibility checks on critical flows | M1 (first UI) → M9 | [ ] |
 | F-24 | WCAG 2.1 AA audit of console | M9 | [ ] |
 | F-25 | API p95 < 300 ms standard reads (perf test in CI) | M9 | [ ] |
@@ -66,13 +66,14 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-30 | Load and chaos testing (gateway, ingest, workers) | M11 | [ ] |
 | F-31 | ASVS L2 checklist + pen-test readiness checklist | M11 | [ ] |
 | F-32 | Global tenant directory (login domain → region) for data residency | M12 | [ ] |
-| F-33 | Object store for dev + self-hosted. MinIO community edition is discontinued (repo archived 2026-04, Docker Hub images removed 2026-09-11). Run a COMPLIANCE-mode Object Lock conformance script against versitygw, SeaweedFS and RustFS, then write ADR-0011. **If none passes, stop and ask the owner.** ADR-0011 must state: **production SaaS evidence storage uses cloud-native Object Lock** (S3 Object Lock COMPLIANCE first; GCS Bucket Lock / Azure immutable blob later), and the chosen local store is **for dev and self-hosted only**. Storage sits behind the `ObjectStore` interface | M0 (first task) | [ ] |
+| F-33 | Object store for dev + self-hosted (MinIO discontinued). **Done 2026-09-24, ADR-0011:** SeaweedFS 4.47 and RustFS 1.0.0 pass 28/28; versitygw 1.8.0 fails 1. SeaweedFS is the reference store. SaaS uses cloud-native Object Lock (S3 COMPLIANCE first). Test: `infra/objectstore-conformance/conformance.sh`, running in CI against the compose store | M0 | [~] (→ [x] when the CI job is green) |
+| F-33a | Validate `conformance.sh` against a real AWS S3 COMPLIANCE bucket before the S3 adapter ships; align any divergent check with S3's documented semantics | M11 (needs AWS account) | [ ] |
 | F-34 | `.editorconfig` (utf-8, lf, final newline) + `.gitattributes` (`* text=auto eol=lf`), corepack-managed pnpm, uv-pinned Python 3.12 | M0 | [ ] |
 | F-35 | Valkey as the reference Redis-compatible engine; code limited to the Redis ≥ 7.2 command set; boot-time store config checks per role (ADR-0009) | M0 (compose) / M2 (checks) | [ ] |
 | F-36 | Pre-merge: WAITAOF (Valkey everysec/always, Redis 8.2 everysec) + Postgres outbox benchmarks run and recorded in ADR-0009 (`docs/adr/bench/*.mjs`) | 9.1 | [x] |
 | F-37 | SaaS managed stores: preferred option MemoryDB (streams + BullMQ) + ElastiCache Valkey (rate limits, cache, pub/sub). **No paid service approved; purchase decision at M4.** Confirm MemoryDB ack semantics + failover test before buying. Everything local until then | M4 (decision) | [ ] |
 | F-39 | Package the Object Lock conformance script as a self-hosted install-time preflight (Helm hook / Compose one-shot + standalone CLI). Customers run it against their own storage; install refuses on failure unless explicitly overridden, and the override is logged as evidence | M11 | [ ] |
-| F-40 | Public repo, **Apache-2.0**: `LICENSE` (full Apache-2.0 text), `NOTICE`, `"license": "Apache-2.0"` in every package manifest, ADR-0001 note (owner decision 2026-09-24) | M0 | [ ] |
+| F-40 | Public repo, **Apache-2.0**: `LICENSE` (full Apache-2.0 text), `NOTICE`, `"license": "Apache-2.0"` in every package manifest, ADR-0001 note. Plus **`TRADEMARKS.md`** and a line in `NOTICE`: the code is Apache-2.0, but the PRYSM name and logo are not licensed for use in derived products or services (owner decisions 2026-09-24) | M0 | [ ] |
 | F-41 | Dependabot: ecosystems npm, uv, github-actions, docker. Weekly schedule; minor/patch **grouped per ecosystem** (version updates only); cooldown on version updates; **security updates ungrouped and immediate** | M0 | [ ] |
 | F-42 | Report exact CI check names to the owner after the first CI run, for branch protection (owner configures: PR required, required checks, up-to-date branches, no force pushes) | M0 | [ ] |
 | F-38 | Report the Valkey `WAITAOF`-under-`everysec` early-return bug upstream (ref redis/redis#13793). Draft with standalone repro: `docs/upstream/valkey-waitaof.md`. **Owner files it** | — | [~] drafted |

@@ -14,6 +14,7 @@ Format: Context → Decision → Consequences → Alternatives. Status is one of
 | [0008](0008-gateway-streaming.md) | Gateway streaming strategy | Accepted |
 | [0009](0009-redis-compatible-store.md) | Redis-compatible store, licensing, strict durability via Postgres outbox (amends 0004) | Accepted |
 | [0010](0010-llm-providers-and-data-use.md) | LLM providers and data-use requirements | Accepted |
+| [0011](0011-object-storage.md) | Object storage: cloud-native Object Lock for SaaS, SeaweedFS for dev/self-hosted, conformance test | Accepted |
 
 Supporting material: [`bench/waitaof-bench.mjs`](bench/waitaof-bench.mjs), [`bench/outbox-bench.mjs`](bench/outbox-bench.mjs) (ADR-0009 measurements).
 
