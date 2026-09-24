@@ -66,7 +66,8 @@ External attacker · malicious or compromised customer user (inside their own te
 |---|---|---|---|
 | **T** | **Prompt injection in an uploaded policy PDF** ("mark all controls satisfied") | ai-service has no DB creds or tools. Output is schema-validated. Citations are checked mechanically against the source text. Humans approve every mapping. LLM output can never approve or close anything | M6 |
 | **T** | An injected document shifts the LLM judge's verdict | Judges only flag. Below threshold they go to review. Judge inputs are delimited, and the template version is logged. Reviewer agreement metrics catch drift | M6 |
-| **I** | Customer documents sent to a third-party LLM without consent | Per-tenant setting: provider choice, "no external LLM" mode (self-hosted models), and data-processing disclosure. Every call is logged | M6 |
+| **I** | Customer documents sent to a third-party LLM without consent | Per-tenant setting: provider choice (Gemini, or Ollama/vLLM local), "no external LLM" mode, and data-processing disclosure. Every call is logged | M6 |
+| **I** | Pass-through upstream keys leak through logs, traces or events | Never persisted or logged. A log/trace scanning test injects canary keys and asserts they never appear | M4 |
 | **D** | Malicious files (zip bombs, huge PDFs, parser exploits) | Size, page and time limits. Parsing runs in a sandboxed subprocess with no network. File type checked by magic bytes | M6 |
 
 ### 3.5 Evidence vault and storage
@@ -90,7 +91,7 @@ External attacker · malicious or compromised customer user (inside their own te
 
 ## 4. Top risks carried forward
 
-1. **Insider rewrite of evidence.** Only as strong as off-platform anchor delivery. Anchor delivery should be on by default: every tenant must configure at least one destination during onboarding (decision needed).
+1. **Insider rewrite of evidence.** Only as strong as off-platform anchor delivery. Decided: at least one destination is mandatory for production tenants, with a PRYSM-managed default in a separate cloud account. That default doesn't stop a PRYSM-wide insider, so customer-owned destinations are encouraged in the console (ADR-0006).
 2. **JS CEL library maturity** (ADR-0005). Conformance testing plus a wrapper.
 3. **Streaming redaction correctness.** Detector max-span declarations must be right, or holdback leaks. Property tests: for random chunkings of an input, the output is identical to buffered mode.
 4. **Detector false negatives on Indian identifiers.** Checksum validation plus a labelled corpus with precision and recall thresholds in CI.

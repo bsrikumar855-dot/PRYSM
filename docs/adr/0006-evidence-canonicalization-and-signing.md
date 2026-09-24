@@ -1,6 +1,6 @@
 # ADR-0006: Evidence canonicalization, chaining and signing
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-24
 
 ## Context
 Evidence must be append-only, tamper-evident, verifiable offline by a third party, and able to survive payload expiry and crypto-shredding. A hash chain held only by PRYSM doesn't stop PRYSM itself, or an attacker holding both the DB and the signing key, from rewriting history. Anchors therefore have to leave our control.
@@ -31,7 +31,8 @@ Anchoring happens per tenant, every 10 minutes or every 10,000 records, whicheve
 - The Merkle tree over `record_hash[from_seq..to_seq]` follows the RFC 6962 construction: leaf = `H(0x00 ‖ x)`, node = `H(0x01 ‖ l ‖ r)`.
 - `AnchorBody { tenant_id, from_seq, to_seq, chain_head, merkle_root, prev_anchor_hash, created_at, key_id }` → JCS → **Ed25519** signature.
 - Signing keys are per region and live in KMS where the provider supports Ed25519. Otherwise the key is wrapped by KMS and used only inside the anchoring worker. Rotation is documented in a runbook, and old public keys stay published.
-- **Off-platform delivery:** every anchor is pushed to at least one destination outside PRYSM's control. The options are a customer webhook, a customer-owned S3 bucket, or email digests. Optionally it's also timestamped by an RFC 3161 TSA (adds an external service; the TSA choice needs approval).
+- **Off-platform delivery:** every anchor is pushed to at least one destination outside the primary platform's control. The options are a customer webhook, a customer-owned S3 bucket, or email digests. **At least one destination is mandatory for production tenants.** To keep onboarding unblocked, PRYSM provides a managed default: an Object Lock (COMPLIANCE) bucket in a **separate cloud account** with separate credentials, write-only from the anchoring worker. Customers can add their own destinations. The managed default protects against a compromised primary platform, but not against a PRYSM-wide insider, so the console encourages adding a customer-owned destination.
+- **Timestamping:** M2 ships a `TimestampAuthority` adapter interface. The anchor schema and verifier already handle optional `tsr/` tokens. The real RFC 3161 integration (choice of TSA, an external service) is deferred to M11 (TRACKING E-04).
 
 ### Storage and immutability
 - Payload objects go to `tenants/{tenant_id}/evidence/{yyyy}/{mm}/{payload_hash}` with **Object Lock COMPLIANCE**, retention = the tenant's policy at write time.

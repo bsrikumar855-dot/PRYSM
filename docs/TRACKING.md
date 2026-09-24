@@ -9,7 +9,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 
 | # | Milestone | Gate (demo) | Status |
 |---|---|---|---|
-| — | 9.1 Architecture baseline | CLAUDE.md, ARCHITECTURE, ADR-0001..0008, threat model v1, this file | Awaiting approval |
+| — | 9.1 Architecture baseline | CLAUDE.md, ARCHITECTURE, ADR-0001..0008, threat model v1, this file | Approved 2026-09-24, PR open |
 | M0 | Foundations | `pnpm i && docker compose up && pnpm dev` → all services report healthy, and the trace is visible in Grafana. CI green with every gate | [ ] |
 | M1 | Identity & tenancy | Sign up → MFA → create app → API key. Cross-tenant test suite passes | [ ] |
 | M2 | Evidence Vault | Append 100k records → anchor → export pack → `prysm-verify` passes. A tampered pack fails | [ ] |
@@ -18,7 +18,8 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | M5 | Assets + findings/remediation | A violation opens a finding → fix → re-check → finding closes on a pass | [ ] |
 | M6 | Rule Intelligence | Upload a policy PDF → cited obligations → mapping proposals → review → publish. Eval harness in CI | [ ] |
 | M7 | Framework & sector content | Frameworks and the Indian fintech pack load as data with sources. Coverage view works | [ ] |
-| M8 | Collectors | GitHub + AWS collectors produce evidence. The plugin interface is documented | [ ] |
+| M8 | Collectors I | GitHub + AWS collectors produce evidence. The plugin interface is documented | [ ] |
+| M8b | Collectors II | GCP, Azure, Jira, Linear collectors | [ ] |
 | M9 | Console, reporting, auditor portal | Dashboards; an audit pack (PDF + bundle) verifies; auditor session is logged | [ ] |
 | M10 | SDKs & integrations | JS/Py SDKs published (dry run), log ingestion, Slack/Teams | [ ] |
 | M11 | Self-hosted & hardening | Helm install on kind/k3d from docs; backup/restore drill; load + chaos; ASVS L2 checklist | [ ] |
@@ -39,13 +40,14 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-08 | Signed container images (cosign keyless via GitHub OIDC) | M0 | [ ] |
 | F-09 | Changesets semver + changelogs; conventional-commit lint | M0 | [ ] |
 | F-10 | Wording check: no "compliant/compliance certified" claims in UI, reports, docs (allowlist) | M0 | [ ] |
-| F-11 | Preview environments per PR | M11 (needs hosting decision, Q-12) | [ ] |
+| F-11 | Preview environments per PR | Deferred, no hosting yet (owner 2026-09-24). Everything must run fully locally | [ ] |
 | F-12 | Postgres RLS on every tenant table + coverage test + generic isolation test (ADR-0007) | M1 | [ ] |
 | F-13 | Envelope encryption: per-tenant DEK, KMS adapter interface, local KMS adapter | M1 | [ ] |
 | F-14 | Cloud KMS adapters (AWS first; GCP/Azure) | M11 | [ ] |
 | F-15 | Field-level encryption for sensitive columns (collector creds, upstream keys, PII fields) | M1 | [ ] |
 | F-16 | Idempotent jobs, retries with backoff, DLQ + replay tool (ADR-0004) | M2 | [ ] |
-| F-17 | Provider-agnostic LLM adapter for PRYSM's own AI, logging model/template version/input hash/output | M6 | [ ] |
+| F-17 | Provider-agnostic LLM adapter for PRYSM's own AI, logging model/template version/input hash/output. Initial providers: Google Gemini API + Ollama / OpenAI-compatible local (vLLM) | M6 | [ ] |
+| F-17a | LLM-off mode: all deterministic features work with no LLM; LLM-dependent features marked unavailable (tested) | M6 | [ ] |
 | F-18 | Public REST API OpenAPI 3.1, generated + committed + drift/breaking check (ADR-0002) | M1 | [ ] |
 | F-19 | CSP + secure headers (api, web) | M1 | [ ] |
 | F-20 | SSRF-safe egress client shared by collectors and URL fetch | M6 | [ ] |
@@ -55,12 +57,14 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-24 | WCAG 2.1 AA audit of console | M9 | [ ] |
 | F-25 | API p95 < 300 ms standard reads (perf test in CI) | M9 | [ ] |
 | F-26 | Gateway availability SLO 99.9% with alerting | M12 | [ ] |
-| F-27 | Terraform (AWS) for a region cell | M11 | [ ] |
+| F-27 | Terraform (AWS) for a region cell: written + `terraform validate` in CI; applied once an AWS account exists | M11 | [ ] |
 | F-28 | Helm chart + self-hosted Docker Compose | M11 | [ ] |
 | F-29 | Backup/restore with a tested drill | M11 | [ ] |
 | F-30 | Load and chaos testing (gateway, ingest, workers) | M11 | [ ] |
 | F-31 | ASVS L2 checklist + pen-test readiness checklist | M11 | [ ] |
 | F-32 | Global tenant directory (login domain → region) for data residency | M12 | [ ] |
+| F-33 | **Pre-M0:** verify MinIO's current licensing/distribution. If usable community images are gone, propose an alternative with S3 Object Lock COMPLIANCE support + ADR. Storage behind `ObjectStore` interface either way | M0 (first task) | [ ] |
+| F-34 | `.gitattributes` (LF normalisation), corepack-managed pnpm, uv-pinned Python 3.12 | M0 | [ ] |
 
 ### 2.2 Identity & tenancy (§4 Auth, §6.9)
 | ID | Requirement | M | Status |
@@ -68,8 +72,8 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | I-01 | Tenants, users, memberships | M1 | [ ] |
 | I-02 | Email + password (Argon2id) + MFA (TOTP, WebAuthn) | M1 | [ ] |
 | I-03 | OIDC SSO | M1 | [ ] |
-| I-04 | SAML SSO | M1 (proposed → M11, Q-3) | [ ] |
-| I-05 | SCIM provisioning | M1 (proposed → M11, Q-3) | [ ] |
+| I-04 | SAML SSO (established library, no embedded IdP) | M11 | [ ] |
+| I-05 | SCIM provisioning | M11 | [ ] |
 | I-06 | RBAC: Owner, Admin, Compliance Manager, Engineer, Reviewer, Auditor (read-only), with an exhaustive permission-matrix test | M1 | [ ] |
 | I-07 | Scoped API keys (gateway/SDK/collector/ingest), hashed, rotatable | M1 | [ ] |
 | I-08 | PRYSM admin AuditLog (append-only) | M1 | [ ] |
@@ -82,8 +86,9 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 |---|---|---|---|
 | E-01 | RFC 8785 JCS → SHA-256 → per-tenant gapless hash chain, single writer (ADR-0006) | M2 | [ ] |
 | E-02 | Merkle anchoring, Ed25519-signed roots, key rotation | M2 | [ ] |
-| E-03 | Off-platform anchor delivery (customer webhook / bucket / email digest) | M2 | [ ] |
-| E-04 | Optional RFC 3161 timestamping (TSA choice needs approval, Q-8) | M2 | [ ] |
+| E-03 | Off-platform anchor delivery (customer webhook / bucket / email digest); ≥1 destination mandatory for production tenants; PRYSM-managed default in a separate account | M2 | [ ] |
+| E-04a | `TimestampAuthority` adapter interface; verifier handles optional `tsr/` | M2 | [ ] |
+| E-04b | Real RFC 3161 TSA integration (TSA choice = external service, ask first) | M11 | [ ] |
 | E-05 | Payloads client-side encrypted in object-locked (COMPLIANCE) storage; metadata + hashes in Postgres | M2 | [ ] |
 | E-06 | DB immutability: write-only grants + trigger; tested | M2 | [ ] |
 | E-07 | `verifier-cli` (Go) offline verification + shared test vectors incl. mutation cases | M2 | [ ] |
@@ -91,6 +96,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | E-09 | Audit bundle format (machine-readable) + export | M2 (format) / M9 (UI, PDF) | [ ] |
 | E-10 | Crypto-shredding on tenant offboarding + runbook | M11 | [ ] |
 | E-11 | Key rotation runbook (signing + DEKs) | M2 | [ ] |
+| E-12 | Per-tenant strict durability: `WAITAOF` after `XADD` for strict tenants; throughput/latency cost benchmarked + documented (ADR-0004) | M4 | [ ] |
 
 ### 2.4 Policy Engine & Detectors (§6.4, §6.3 detectors)
 | ID | Requirement | M | Status |
@@ -100,7 +106,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | P-03 | Action precedence + decision trace | M3 | [ ] |
 | P-04 | Simulation function (draft vs published over inputs) | M3 | [ ] |
 | P-05 | Simulation over the last N days of real events via API/UI | M5 | [ ] |
-| P-06 | LLM-judged tier: async, confidence-gated, rationale + model/template version, review routing | M6 | [ ] |
+| P-06 | LLM-judged tier: async, confidence-gated, rationale + model/template version, review routing. At/above threshold → Finding `pending_confirmation` only; never passes/closes a control; excluded from scores until human confirms | M6 | [ ] |
 | P-07 | Scheduled drift checks: framework + gateway-derived checks (approved models only, logging on, retention set) | M5 | [ ] |
 | P-08 | Drift checks backed by collectors (cloud config) | M8 | [ ] |
 | P-09 | Controls versioned, change approval, permanent history | M3 | [ ] |
@@ -116,8 +122,10 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 ### 2.5 AI Gateway (§6.3)
 | ID | Requirement | M | Status |
 |---|---|---|---|
-| G-01 | OpenAI-compatible endpoints incl. streaming (scope per Q-6) | M4 | [ ] |
-| G-02 | Anthropic-compatible endpoints incl. streaming | M4 | [ ] |
+| G-01 | OpenAI-compatible: Chat Completions, Responses, Embeddings, Models, incl. streaming | M4 | [ ] |
+| G-02 | Anthropic-compatible: Messages (+ count_tokens) incl. streaming | M4 | [ ] |
+| G-02a | Image/audio content metadata-only in v1 (recorded, not inspected) | M4 | [ ] |
+| G-02b | Upstream credentials: stored-encrypted (default, tenant DEK) and pass-through (never logged/persisted, canary test) | M4 | [ ] |
 | G-03 | Inspection modes passthrough / holdback / buffered; chunking-invariance property tests (ADR-0008) | M4 | [ ] |
 | G-04 | Pre-request: PII/secrets detect + redact, injection heuristics, model allowlist, required disclosures | M4 | [ ] |
 | G-05 | Per-app / per-user rate limits and budgets (tokens, cost) | M4 | [ ] |
@@ -128,7 +136,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | G-10 | Health checks, stateless horizontal scaling, graceful stream drain | M4 | [ ] |
 | G-11 | Zero-downtime policy hot reload | M4 | [ ] |
 | G-12 | Contract tests against recorded real provider responses | M4 | [ ] |
-| G-13 | Benchmark suite committed; CI gate p95 added ≤ 30 ms @ 500 RPS/node | M4 | [ ] |
+| G-13 | Benchmark suite committed; gate p95 added ≤ 30 ms @ 500 RPS/node — blocking nightly + non-blocking PR check until a dedicated runner exists | M4 | [ ] |
 | G-14 | Usage counters for metering (events, monitored apps) | M4 (capture) / M12 (billing export) | [ ] |
 
 ### 2.6 Assets, Findings, Remediation, Review (§5, §6.7)
@@ -161,11 +169,11 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | ID | Requirement | M | Status |
 |---|---|---|---|
 | C-01 | Framework model: framework → version → obligations, as data under `content/` with source URL + retrieval date | M7 | [ ] |
-| C-02 | EU AI Act (current timeline, see Q-9) | M7 | [ ] |
-| C-03 | ISO/IEC 42001 (licensing, see Q-10) | M7 | [ ] |
+| C-02 | EU AI Act incl. Digital Omnibus timeline. Owner-supplied, **unverified by us**: Omnibus = Reg. (EU) 2026/1744, in force 2026-07-27; Annex III high-risk → 2027-12-02; Annex I → 2028-08-02; Art. 50 from 2026-08-02; watermarking for systems already on market → 2026-12-02. Verify every date against EUR-Lex at M7 before loading | M7 | [ ] |
+| C-03 | ISO/IEC 42001: clause IDs only in `content/`; clause text loaded per tenant from the customer's licensed copy | M7 | [ ] |
 | C-04 | NIST AI RMF 1.0 (+ GenAI profile) | M7 | [ ] |
-| C-05 | India DPDP Act 2023 (+ Rules, see Q-9) | M7 | [ ] |
-| C-06 | Indian fintech sector pack (RBI, SEBI), with sources chosen with you (Q-11) | M7 | [ ] |
+| C-05 | India DPDP Act 2023 + DPDP Rules 2025 (official notified text, source + retrieval date) | M7 | [ ] |
+| C-06 | Indian fintech sector pack. Candidate sources — fetch official current versions, confirm in-force/superseded, **report back to owner before loading**: RBI FREE-AI framework report (2025); RBI MD on IT Governance, Risk, Controls & Assurance Practices (2023); RBI MD on Outsourcing of IT Services (2023); RBI Digital Lending Directions (latest); SEBI circulars on AI/ML usage reporting by intermediaries; SEBI guidelines/consultation on responsible AI/ML in securities markets (2025); SEBI CSCRF | M7 | [ ] |
 | C-07 | Sector pack format: pluggable bundle of controls + detectors + policies | M7 | [ ] |
 | C-08 | OSCAL-compatible JSON import/export | M7 | [ ] |
 | C-09 | Framework coverage view: mapped / unmapped / partial | M7 (API) / M9 (UI) | [ ] |
@@ -177,9 +185,9 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | K-01 | Collector plugin interface; isolated packages with their own tests | M8 | [ ] |
 | K-02 | GitHub (prompt/model/config changes, PR reviews, CI eval results) | M8 | [ ] |
 | K-03 | AWS (encryption, IAM, logging) | M8 | [ ] |
-| K-04 | GCP | M8 (proposed → M8b, Q-4) | [ ] |
-| K-05 | Azure | M8 (proposed → M8b, Q-4) | [ ] |
-| K-06 | Jira, Linear | M8 (proposed → M8b, Q-4) | [ ] |
+| K-04 | GCP | M8b | [ ] |
+| K-05 | Azure | M8b | [ ] |
+| K-06 | Jira, Linear | M8b | [ ] |
 | K-07 | Encrypted credentials; least-privilege scopes documented per collector | M8 | [ ] |
 
 ### 2.10 Reporting & Auditor Portal (§6.8)
@@ -202,7 +210,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 |---|---|---|---|
 | L-01 | Usage metering (monitored apps, gateway events), exportable | M12 | [ ] |
 | L-02 | Payment provider integration | Post-M12 (per brief) | [ ] |
-| L-03 | Onboarding flow (incl. mandatory anchor destination, Q-7) | M12 | [ ] |
+| L-03 | Onboarding flow (incl. mandatory anchor destination with managed default) | M12 | [ ] |
 | L-04 | Docs site: API reference, self-hosting guide, customer integration guide | M10 (integration) / M11 (self-host) / M12 (site) | [ ] |
 | L-05 | Runbooks: incident, key rotation, restore from backup, tenant offboarding | M2 (key rotation) / M11 / M12 | [ ] |
 | L-06 | SLOs + alerting live | M12 | [ ] |
@@ -210,7 +218,13 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 ## 3. Scope changes log
 | Date | Change | Approved by |
 |---|---|---|
-| — | none yet | — |
+| 2026-09-24 | SAML + SCIM moved M1 → M11 | Owner |
+| 2026-09-24 | Collectors split: M8 = GitHub + AWS; new M8b = GCP, Azure, Jira, Linear | Owner |
+| 2026-09-24 | RFC 3161: interface in M2, real TSA integration M11 | Owner |
+| 2026-09-24 | Preview environments deferred (no hosting); benchmark gate nightly-blocking / PR-non-blocking (no dedicated runner) | Owner |
+| 2026-09-24 | No AWS account yet: Terraform validated, not applied | Owner |
+| 2026-09-24 | PRYSM LLM providers: Gemini API + Ollama/OpenAI-compatible local; LLM-off mode required | Owner |
+| 2026-09-24 | Per-tenant strict durability (WAITAOF) added (E-12) | Owner |
 
 ## 4. TODO registry
 Every `TODO(T-###)` in the codebase must appear here. CI fails on a `TODO` that has no ID or isn't registered.

@@ -1,6 +1,6 @@
 # ADR-0007: Multi-tenancy strategy
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-24
 
 ## Context
 Tenant isolation is absolute (principle 4). We need SaaS density, data residency, and a single-tenant self-hosted edition from the same code.

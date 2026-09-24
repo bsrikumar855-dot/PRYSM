@@ -1,6 +1,6 @@
 # ADR-0004: Job system
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-24
 
 ## Context
 There are two very different workloads:
@@ -18,7 +18,8 @@ Self-hosted customers have to run whatever we pick.
 - Postgres is the system of record. Redis only holds work in flight.
 
 ## Consequences
-- `appendfsync everysec` can lose up to about 1 s of events if Redis crashes before they're persisted. Those events never reach the chain, so this doesn't break tamper-evidence, but it is a completeness gap. Mitigations: a replica, the spool, and gap records. `appendfsync always` is available per deployment if a customer requires it, at a throughput cost. **Open question for you.**
+- `appendfsync everysec` can lose up to about 1 s of events if Redis crashes before they're persisted. Those events never reach the chain, so this doesn't break tamper-evidence, but it is a completeness gap. Mitigations: a replica, the spool, and gap records. **Accepted as the default (owner, 2026-09-24).**
+- **Per-tenant "strict durability" option.** `appendfsync` applies to the whole Redis instance, so it can't be switched per tenant. For strict tenants the gateway instead issues `WAITAOF 1 0 <timeout>` (Redis ≥ 7.2) right after `XADD`, on a dedicated connection pool because `WAITAOF` blocks its connection. The response is finished only once the event is fsynced locally. On timeout, the app's fail-open/closed mode applies and the outcome is evidenced. Cost: every strict request pays one fsync (typically 1–10 ms depending on the disk, more under contention), and throughput per Redis node drops. The benchmark suite measures it separately, and the numbers are documented. A deployment can also set `appendfsync always` globally (self-hosted).
 - The fixed shard count caps per-tenant ingest at one consumer. Batched appends make that thousands of events per second per tenant, which is well above target. Resharding is a documented operation.
 
 ## Alternatives

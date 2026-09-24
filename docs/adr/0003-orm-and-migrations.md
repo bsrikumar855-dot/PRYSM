@@ -1,6 +1,6 @@
 # ADR-0003: ORM and migrations
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-24
 
 ## Context
 Tenant isolation relies on Postgres RLS with a per-transaction session variable (ADR-0007). The schema also needs things ORMs model badly: RLS policies, grants, immutability triggers, pgvector indexes, `tsvector` columns, partitioned event tables.

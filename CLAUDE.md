@@ -2,7 +2,15 @@
 
 PRYSM is a continuous AI compliance operating system: it turns AI rules (laws, standards, customer policy documents) into versioned controls, enforces them inline on every model call through a gateway, and keeps a tamper-evident evidence trail that auditors can verify offline. It is a production multi-tenant SaaS with a self-hosted edition, built from the same codebase.
 
-**Status:** pre-M0. Architecture docs and ADRs are *Proposed*, awaiting owner approval. Do not write application code until they are approved.
+**Status:** pre-M0. ADR-0001..0008 are *Accepted* (2026-09-24). The next step is the M0 plan, which the owner must approve before any code is written.
+
+## Owner decisions that shape day-to-day work
+
+- **No dedicated benchmark runner, no AWS account, no preview environments.** Everything must run fully locally. The gateway benchmark gate is blocking nightly and non-blocking on PRs.
+- **PRYSM's own LLM:** provider-agnostic adapter. Initial providers are Google Gemini API and Ollama, plus any OpenAI-compatible local endpoint (vLLM). Every deterministic feature must work with no LLM configured. LLM-dependent features are shown as unavailable, never silently skipped.
+- **LLM findings:** at or above threshold → `pending_confirmation` only, excluded from control-status scores until a human confirms. Never passes or closes a control.
+- **Regulatory content:** owner-supplied facts (e.g. EU AI Act Omnibus dates) are recorded as unverified until checked against the official source (EUR-Lex, RBI, SEBI, MeitY). ISO 42001 ships clause IDs only.
+- **Storage** sits behind the `ObjectStore` interface. MinIO's status is checked before M0 (TRACKING F-33).
 
 ## Read first
 

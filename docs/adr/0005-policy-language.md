@@ -1,6 +1,6 @@
 # ADR-0005: Policy language (CEL-based DSL)
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-24
 
 ## Context
 Controls need executable policies that are declarative, versioned, reviewable by non-engineers, deterministic, fast enough for the gateway hot path, and simulatable against history. Principle 1: an LLM can't make the final call.
@@ -38,7 +38,8 @@ Parse → schema-validate → CEL parse and **type-check** against the declared 
 - **Pure.** No I/O, clock or randomness. `now`, app metadata and detector facts are all passed in. Detectors run *outside* the engine (`packages/detectors`) and their results arrive as `facts`. That lets simulation reuse stored facts for tenants on metadata-only retention, where raw payloads don't exist.
 - **Cost-bounded.** There is a static cost estimate at compile time and a runtime budget per evaluation. `matches()` uses RE2 semantics, and customer regex is compiled with an RE2 engine (no backtracking).
 - **Deterministic conflicts.** When several rules fire, `block > replace > redact > annotate > allow`, with ties broken by rule id. A Decision includes a full trace (which rules matched, their values, and the policy hash).
-- **`llm_judge` rules are never evaluated inline.** The engine emits a `judge_request`, and workers call the ai-service. The result is an Evaluation with `source=llm`, `confidence`, `rationale`, model and template version. Below the threshold it becomes a ReviewItem. **Above the threshold it still cannot close or pass a control by itself** (see the open question in the kickoff reply).
+- **`llm_judge` rules are never evaluated inline.** The engine emits a `judge_request`, and workers call the ai-service. The result is an Evaluation with `source=llm`, `confidence`, `rationale`, model and template version. Below the threshold it becomes a ReviewItem. At or above the threshold it may open a Finding in state **`pending_confirmation`** only. An LLM result can never pass or close a control. Pending findings are excluded from control-status scores until a human confirms or dismisses them (owner decision, 2026-09-24).
+- **LLM features are optional.** With no LLM configured, `llm_judge` rules compile, but they are marked unavailable in the console and produce no evaluations. All deterministic features work unchanged.
 
 ### Simulation
 `simulate(draftCompiled, historicalInputs[]) → diff` against the currently published policy. The same pure function also runs in workers over the last N days of stored facts and payloads, where retention allows.

@@ -1,6 +1,6 @@
 # ADR-0001: Monorepo tooling
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-24
 
 ## Context
 The repo holds TypeScript services and packages, a Python service and SDK, and a Go CLI (ADR-0006). CI has to build and test only what a change affects, and one command has to run everything locally.
