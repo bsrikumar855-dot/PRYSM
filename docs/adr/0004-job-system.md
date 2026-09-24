@@ -19,7 +19,8 @@ Self-hosted customers have to run whatever we pick.
 
 ## Consequences
 - `appendfsync everysec` can lose up to about 1 s of events if Redis crashes before they're persisted. Those events never reach the chain, so this doesn't break tamper-evidence, but it is a completeness gap. Mitigations: a replica, the spool, and gap records. **Accepted as the default (owner, 2026-09-24).**
-- **Per-tenant "strict durability" option.** `appendfsync` applies to the whole Redis instance, so it can't be switched per tenant. For strict tenants the gateway instead issues `WAITAOF 1 0 <timeout>` (Redis ≥ 7.2) right after `XADD`, on a dedicated connection pool because `WAITAOF` blocks its connection. The response is finished only once the event is fsynced locally. On timeout, the app's fail-open/closed mode applies and the outcome is evidenced. Cost: every strict request pays one fsync (typically 1–10 ms depending on the disk, more under contention), and throughput per Redis node drops. The benchmark suite measures it separately, and the numbers are documented. A deployment can also set `appendfsync always` globally (self-hosted).
+- **Per-tenant "strict durability" option: see ADR-0009.** The earlier design (`WAITAOF` on the shared `everysec` instance, "1–10 ms") was wrong. On an `everysec` instance, `WAITAOF` waits for the next once-per-second fsync, so 0–1000 ms. Strict tenants' events go to a separate durable stream store (Valkey with `appendfsync always` self-hosted, MemoryDB proposed for SaaS) over a dedicated connection pool, with their own latency budget outside the 30 ms gateway budget.
+- The "≤ 1 s" loss window applies to self-hosted Valkey/Redis with AOF `everysec`. ElastiCache doesn't support AOF, so SaaS durability is covered in ADR-0009.
 - The fixed shard count caps per-tenant ingest at one consumer. Batched appends make that thousands of events per second per tenant, which is well above target. Resharding is a documented operation.
 
 ## Alternatives

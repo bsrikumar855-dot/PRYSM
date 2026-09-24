@@ -199,9 +199,11 @@ flowchart TB
 
 ## 7. Deployment topologies
 
-- **SaaS:** AWS first (no account yet, so Terraform is written and validated in M11 but not applied until one exists). Per region: EKS, RDS Postgres 16 (pgvector), ElastiCache Redis (AOF, `noeviction`), S3 with Object Lock, KMS. Terraform in `infra/terraform`, workloads via the Helm chart.
-- **Self-hosted:** the same Helm chart, or Docker Compose for small installs. Customer-supplied Postgres, Redis and S3-compatible storage with Object Lock. The local KMS adapter keeps its master key in a file or HSM via PKCS#11 (M11).
-- **Local dev:** `infra/docker/compose.dev.yml` runs Postgres, Redis, MinIO (object lock enabled) and an OTel collector with Grafana LGTM.
+- **SaaS:** AWS first (no account yet, so Terraform is written and validated in M11 but not applied until one exists). Per region: EKS, RDS Postgres 16 (pgvector), MemoryDB for event streams and BullMQ (proposed, ADR-0009), ElastiCache for Valkey for rate limits, caches and pub/sub, S3 with Object Lock, and KMS. Terraform in `infra/terraform`, workloads via the Helm chart.
+- **Self-hosted:** the same Helm chart, or Docker Compose for small installs. Customer-supplied Postgres, a Redis-compatible store (Valkey is the reference; Redis ≥ 7.2 is accepted; a second `appendfsync always` instance is needed only for strict durability) and S3-compatible storage with Object Lock. The local KMS adapter keeps its master key in a file or HSM via PKCS#11 (M11).
+- **Local dev:** `infra/docker/compose.dev.yml` runs Postgres, Valkey, S3-compatible storage with object lock (implementation per TRACKING F-33) and an OTel collector with Grafana LGTM.
+
+"Redis" in this document means the Redis protocol and data model. The reference engine is Valkey (ADR-0009).
 
 ## 8. Cross-cutting
 
@@ -210,7 +212,7 @@ flowchart TB
 - **Config:** env vars validated at boot with zod. The process refuses to start on invalid config.
 - **Shutdown:** SIGTERM → readiness goes false → drain in-flight requests and streams (gateway, bounded at 30 s) → flush the event spool → exit.
 - **Versioning:** every GatewayEvent, Evaluation and Finding records the policy version hash, detector versions and gateway build, so any verdict can be reproduced.
-- **PRYSM's own LLM calls:** a single provider-agnostic adapter in the ai-service. Each call logs provider, model, template id@version, SHA-256 of the inputs, output, token counts and latency, as an evidence record. The initial providers are **Google Gemini API** (hosted) and **Ollama**, plus any OpenAI-compatible local endpoint such as vLLM (self-hosted, no external LLM). The provider is selected per tenant.
+- **PRYSM's own LLM calls:** a single provider-agnostic adapter in the ai-service. Each call logs provider, model, template id@version, SHA-256 of the inputs, output, token counts and latency, as an evidence record. The initial providers are **Google Gemini API** (hosted) and **Ollama**, plus any OpenAI-compatible local endpoint such as vLLM (self-hosted, no external LLM). The provider is selected per tenant. **Hard requirement (ADR-0010):** customer data only goes to a provider tier that contractually excludes training on it: the paid Gemini API (billing-enabled project) or Vertex AI once verified. Never the unpaid tier.
 - **LLM-off mode:** every deterministic feature (gateway, policies, detectors, evidence, findings, reports) works with no LLM configured. LLM-dependent features (obligation extraction, mapping proposals, `llm_judge` rules) are clearly marked unavailable, never silently skipped.
 - **Object storage** is behind an `ObjectStore` interface (put with retention, get, lock status, expire). The Object Lock COMPLIANCE requirement is checked at boot, and the process refuses to start without it. Which local/self-hosted implementation to use depends on MinIO's current licensing and distribution status, which is checked before M0 (TRACKING F-33).
 

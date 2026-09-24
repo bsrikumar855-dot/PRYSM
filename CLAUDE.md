@@ -11,6 +11,8 @@ PRYSM is a continuous AI compliance operating system: it turns AI rules (laws, s
 - **LLM findings:** at or above threshold → `pending_confirmation` only, excluded from control-status scores until a human confirms. Never passes or closes a control.
 - **Regulatory content:** owner-supplied facts (e.g. EU AI Act Omnibus dates) are recorded as unverified until checked against the official source (EUR-Lex, RBI, SEBI, MeitY). ISO 42001 ships clause IDs only.
 - **Storage** sits behind the `ObjectStore` interface. MinIO's status is checked before M0 (TRACKING F-33).
+- **Redis-compatible store:** Valkey is the reference engine. Use only the Redis ≥ 7.2 command set. Strict durability uses a separate `appendfsync always` store, never `WAITAOF` on an `everysec` instance (ADR-0009).
+- **LLM data use:** customer data only goes to no-training tiers (paid Gemini API / verified Vertex AI). Never the free tier (ADR-0010).
 
 ## Read first
 
@@ -63,6 +65,7 @@ pnpm db:migrate / pnpm db:generate
 - Migrations are forward-only. Schema changes use expand/contract. RLS policies are hand-written SQL migrations.
 - Every tenant-scoped table has `tenant_id`, composite FKs `(tenant_id, id)`, and `ENABLE` + `FORCE ROW LEVEL SECURITY`. A CI check enforces this.
 - Logs are structured JSON with `tenant_id` and `request_id`. **Never log raw prompts, responses, payloads or secrets.**
+- Files are UTF-8 (no BOM) with LF line endings, enforced by `.editorconfig` + `.gitattributes`. **Never edit files with PowerShell `Get-Content`/`Set-Content` or `-replace`:** Windows PowerShell 5.1 reads BOM-less UTF-8 as ANSI and corrupts non-ASCII text. Use the Edit/Write tools, or `sed` in Git Bash.
 - Document every public function (TSDoc / docstring). Inside function bodies, only comment the non-obvious why.
 - Policy engine, detectors and evidence code are pure and deterministic: no I/O, no `Date.now()`, no randomness inside them. Pass time and nonces in as inputs.
 
