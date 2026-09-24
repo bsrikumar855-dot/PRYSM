@@ -37,7 +37,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-05 | CI: lint, typecheck, test, build (TS/Py/Go) | M0 | [ ] |
 | F-06 | CI security: gitleaks, OSV/dependency review, Semgrep SAST, Trivy container scan, SBOM (CycloneDX) | M0 | [ ] |
 | F-07 | CI: migration check job (ADR-0003) | M0 (job) / M1 (first real schema) | [ ] |
-| F-08 | Signed container images (cosign keyless via GitHub OIDC) | M0 | [ ] |
+| F-08 | Signed container images: cosign keyless via GitHub OIDC (public Sigstore), pushed to GHCR on `main` only (approved 2026-09-24) | M0 | [ ] |
 | F-09 | Changesets semver + changelogs; conventional-commit lint | M0 | [ ] |
 | F-10 | Wording check: no "compliant/compliance certified" claims in UI, reports, docs (allowlist) | M0 | [ ] |
 | F-11 | Preview environments per PR | Deferred, no hosting yet (owner 2026-09-24). Everything must run fully locally | [ ] |
@@ -48,6 +48,9 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-16 | Idempotent jobs, retries with backoff, DLQ + replay tool (ADR-0004) | M2 | [ ] |
 | F-17 | Provider-agnostic LLM adapter for PRYSM's own AI, logging model/template version/input hash/output. Initial providers: Google Gemini API + Ollama / OpenAI-compatible local (vLLM) | M6 | [ ] |
 | F-17a | LLM-off mode: all deterministic features work with no LLM; LLM-dependent features marked unavailable (tested) | M6 | [ ] |
+| F-17b | **Hard requirement:** only no-training provider tiers (paid Gemini API / verified Vertex AI). Provider registry with `data_use_tier` attestation, startup refusal, BYO-key Owner attestation, quarterly terms-review runbook (ADR-0010) | M6 | [ ] |
+| F-17d | Attestation audit entry + evidence record: who (user, role, tenant/platform, session, MFA), when (UTC), which key (`SHA-256("prysm.keyfp.v1\n" ‖ key)` fingerprint, never the raw key), provider, project ID, tier, terms URL + date; invalidated on key rotation or terms change (ADR-0010) | M6 | [ ] |
+| F-17c | Verify Vertex AI data-governance terms and record them in ADR-0010 before enabling the Vertex adapter | M6 | [ ] |
 | F-18 | Public REST API OpenAPI 3.1, generated + committed + drift/breaking check (ADR-0002) | M1 | [ ] |
 | F-19 | CSP + secure headers (api, web) | M1 | [ ] |
 | F-20 | SSRF-safe egress client shared by collectors and URL fetch | M6 | [ ] |
@@ -63,8 +66,16 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-30 | Load and chaos testing (gateway, ingest, workers) | M11 | [ ] |
 | F-31 | ASVS L2 checklist + pen-test readiness checklist | M11 | [ ] |
 | F-32 | Global tenant directory (login domain → region) for data residency | M12 | [ ] |
-| F-33 | **Pre-M0:** verify MinIO's current licensing/distribution. If usable community images are gone, propose an alternative with S3 Object Lock COMPLIANCE support + ADR. Storage behind `ObjectStore` interface either way | M0 (first task) | [ ] |
-| F-34 | `.gitattributes` (LF normalisation), corepack-managed pnpm, uv-pinned Python 3.12 | M0 | [ ] |
+| F-33 | Object store for dev + self-hosted. MinIO community edition is discontinued (repo archived 2026-04, Docker Hub images removed 2026-09-11). Run a COMPLIANCE-mode Object Lock conformance script against versitygw, SeaweedFS and RustFS, then write ADR-0011. **If none passes, stop and ask the owner.** ADR-0011 must state: **production SaaS evidence storage uses cloud-native Object Lock** (S3 Object Lock COMPLIANCE first; GCS Bucket Lock / Azure immutable blob later), and the chosen local store is **for dev and self-hosted only**. Storage sits behind the `ObjectStore` interface | M0 (first task) | [ ] |
+| F-34 | `.editorconfig` (utf-8, lf, final newline) + `.gitattributes` (`* text=auto eol=lf`), corepack-managed pnpm, uv-pinned Python 3.12 | M0 | [ ] |
+| F-35 | Valkey as the reference Redis-compatible engine; code limited to the Redis ≥ 7.2 command set; boot-time store config checks per role (ADR-0009) | M0 (compose) / M2 (checks) | [ ] |
+| F-36 | Pre-merge: WAITAOF (Valkey everysec/always, Redis 8.2 everysec) + Postgres outbox benchmarks run and recorded in ADR-0009 (`docs/adr/bench/*.mjs`) | 9.1 | [x] |
+| F-37 | SaaS managed stores: preferred option MemoryDB (streams + BullMQ) + ElastiCache Valkey (rate limits, cache, pub/sub). **No paid service approved; purchase decision at M4.** Confirm MemoryDB ack semantics + failover test before buying. Everything local until then | M4 (decision) | [ ] |
+| F-39 | Package the Object Lock conformance script as a self-hosted install-time preflight (Helm hook / Compose one-shot + standalone CLI). Customers run it against their own storage; install refuses on failure unless explicitly overridden, and the override is logged as evidence | M11 | [ ] |
+| F-40 | Public repo, **Apache-2.0**: `LICENSE` (full Apache-2.0 text), `NOTICE`, `"license": "Apache-2.0"` in every package manifest, ADR-0001 note (owner decision 2026-09-24) | M0 | [ ] |
+| F-41 | Dependabot: ecosystems npm, uv, github-actions, docker. Weekly schedule; minor/patch **grouped per ecosystem** (version updates only); cooldown on version updates; **security updates ungrouped and immediate** | M0 | [ ] |
+| F-42 | Report exact CI check names to the owner after the first CI run, for branch protection (owner configures: PR required, required checks, up-to-date branches, no force pushes) | M0 | [ ] |
+| F-38 | Report the Valkey `WAITAOF`-under-`everysec` early-return bug upstream (ref redis/redis#13793). Draft with standalone repro: `docs/upstream/valkey-waitaof.md`. **Owner files it** | — | [~] drafted |
 
 ### 2.2 Identity & tenancy (§4 Auth, §6.9)
 | ID | Requirement | M | Status |
@@ -96,7 +107,8 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | E-09 | Audit bundle format (machine-readable) + export | M2 (format) / M9 (UI, PDF) | [ ] |
 | E-10 | Crypto-shredding on tenant offboarding + runbook | M11 | [ ] |
 | E-11 | Key rotation runbook (signing + DEKs) | M2 | [ ] |
-| E-12 | Per-tenant strict durability: `WAITAOF` after `XADD` for strict tenants; throughput/latency cost benchmarked + documented (ADR-0004) | M4 | [ ] |
+| E-12 | Per-tenant strict durability via Postgres transactional outbox: `strict_outbox` + RLS, `prysm_gateway_outbox` INSERT-only role, dedicated pool, `synchronous_commit=on`; `request.started` committed before upstream, `request.completed` before terminal chunk; shard ingest worker appends + deletes in one transaction; budget ≤ 50 ms p95 TTFB / ≤ 20 ms terminal chunk; separate nightly bench scenario (ADR-0009) | M4 (M2: table + relay) | [ ] |
+| E-13 | Optional Sigstore Rekor anchor destination (opaque digests only), inclusion proofs verified offline by `verifier-cli`. `AnchorDestination` interface in M2 | M11 | [ ] |
 
 ### 2.4 Policy Engine & Detectors (§6.4, §6.3 detectors)
 | ID | Requirement | M | Status |
@@ -138,6 +150,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | G-12 | Contract tests against recorded real provider responses | M4 | [ ] |
 | G-13 | Benchmark suite committed; gate p95 added ≤ 30 ms @ 500 RPS/node — blocking nightly + non-blocking PR check until a dedicated runner exists | M4 | [ ] |
 | G-14 | Usage counters for metering (events, monitored apps) | M4 (capture) / M12 (billing export) | [ ] |
+| G-15 | Connection pooler (PgBouncer in transaction mode, or equivalent) in front of Postgres for the gateway's `strict_outbox` pool. Documented max-connections calculation, per the runbook: (1) **per gateway node** client pool = ⌈strict_RPS_per_node × 2 commits/request × p95_commit_latency_s × 1.5 headroom⌉ (Little's law); (2) **PgBouncer** `max_client_conn` ≥ Σ over gateway nodes of (1) at max autoscale; `default_pool_size` (server conns for the outbox role) = ⌈total strict_RPS × 2 × p95_commit_latency_s × 1.5⌉; (3) **Postgres** `max_connections` ≥ Σ PgBouncer server pools + api + workers + migrations + `superuser_reserved_connections`. A load test proves no pool exhaustion at 500 RPS/node | M4 | [ ] |
 
 ### 2.6 Assets, Findings, Remediation, Review (§5, §6.7)
 | ID | Requirement | M | Status |
@@ -225,6 +238,20 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | 2026-09-24 | No AWS account yet: Terraform validated, not applied | Owner |
 | 2026-09-24 | PRYSM LLM providers: Gemini API + Ollama/OpenAI-compatible local; LLM-off mode required | Owner |
 | 2026-09-24 | Per-tenant strict durability (WAITAOF) added (E-12) | Owner |
+| 2026-09-24 | Strict durability: Postgres transactional outbox chosen over a second `always` Valkey (measured: p95 16.4 vs 32.7 ms at 50 conns). No WAITAOF anywhere (ADR-0009) | Owner |
+| 2026-09-24 | Valkey chosen as the reference engine (ADR-0009) | Owner |
+| 2026-09-24 | Managed SaaS stores: preferred option recorded, purchase deferred to M4 (F-37) | Owner |
+| 2026-09-24 | LLM data-use hard requirement + attestation audit fields (ADR-0010) | Owner |
+| 2026-09-24 | Optional Rekor anchor destination (E-13, M11) | Owner |
+| 2026-09-24 | M0 plan approved. Go toolchain/CI moved to M2; TypeScript pinned to 6.0.3 (typescript-eslint supports < 6.1); pnpm 12 (ADR-0001 amendment in M0) | Owner |
+| 2026-09-24 | Cosign keyless + GHCR push on `main`; Dependabot with grouped/cooldown version updates and immediate security updates | Owner |
+| 2026-09-24 | SaaS evidence storage = cloud-native Object Lock; local store is dev/self-hosted only; conformance preflight for self-hosted (F-39, M11) | Owner |
+
+## 3a. Open questions (decide at the named milestone)
+
+| ID | Question | Decide at | How | Status |
+|---|---|---|---|---|
+| OQ-1 | Should **all** tenants' evidence events use the Postgres outbox (one path) instead of Redis Streams + outbox (two paths)? | M4 | Benchmark at realistic scale (target gateway fleet at 500 RPS/node, mixed tenant sizes) on the reference runner. Criteria: **throughput per Postgres node** (incl. WAL volume, autovacuum, replica lag), **cost** (IOPS/instance size vs a managed Redis-compatible store), **operational simplicity** (components, failure modes, runbooks), **hash-chain ordering complexity** (one source per shard vs merging stream + outbox in the single writer). Record the outcome in a new ADR that amends ADR-0004/0009 | Open |
 
 ## 4. TODO registry
 Every `TODO(T-###)` in the codebase must appear here. CI fails on a `TODO` that has no ID or isn't registered.
