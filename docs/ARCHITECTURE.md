@@ -181,6 +181,7 @@ flowchart TB
   U --> WEB --> API
   GW --> LLM
   GW --> RD
+  GW -. strict outbox INSERT only .-> PG
   API --> PG & RD & S3 & KMS
   WK --> PG & RD & S3 & KMS
   WK --> EXT
@@ -191,6 +192,7 @@ flowchart TB
 | Boundary | What crosses it | Key controls |
 |---|---|---|
 | TB1→TB2 | Prompts and responses, console sessions, API keys | TLS 1.2+, scoped API keys (hashed at rest), OIDC/SAML sessions with MFA, rate limits, zod validation, CSP |
+| TB2→TB4 (gateway → Postgres) | Strict-tenant durable events only | Dedicated pool, role `prysm_gateway_outbox` with INSERT-only on `strict_outbox`, RLS `WITH CHECK`, no SELECT on anything, PgBouncer (ADR-0009) |
 | TB2→TB5 (gateway → LLM) | Customer prompts (possibly redacted) | Upstream allowlist per provider, egress restricted to provider hosts, customer's provider credentials encrypted with tenant DEK |
 | TB3→TB5 (workers → collectors / webhooks) | Customer cloud credentials, outbound calls | SSRF guard (DNS resolve → deny private/link-local/metadata ranges, re-check on redirect), least-privilege scopes, encrypted credentials |
 | TB3 (workers → ai-service) | Untrusted documents | ai-service has no DB creds, output is schema-validated, citation spans checked mechanically, humans approve |
@@ -199,8 +201,8 @@ flowchart TB
 
 ## 7. Deployment topologies
 
-- **SaaS:** AWS first (no account yet, so Terraform is written and validated in M11 but not applied until one exists). Per region: EKS, RDS Postgres 16 (pgvector), MemoryDB for event streams and BullMQ (proposed, ADR-0009), ElastiCache for Valkey for rate limits, caches and pub/sub, S3 with Object Lock, and KMS. Terraform in `infra/terraform`, workloads via the Helm chart.
-- **Self-hosted:** the same Helm chart, or Docker Compose for small installs. Customer-supplied Postgres, a Redis-compatible store (Valkey is the reference; Redis ≥ 7.2 is accepted; a second `appendfsync always` instance is needed only for strict durability) and S3-compatible storage with Object Lock. The local KMS adapter keeps its master key in a file or HSM via PKCS#11 (M11).
+- **SaaS:** AWS first (no account yet, so Terraform is written and validated in M11 but not applied until one exists). Per region: EKS, RDS Postgres 16 (pgvector, Multi-AZ synchronous standby), MemoryDB for event streams and BullMQ plus ElastiCache for Valkey for rate limits, caches and pub/sub (preferred option, purchase deferred to M4, ADR-0009), S3 with Object Lock, and KMS. Terraform in `infra/terraform`, workloads via the Helm chart.
+- **Self-hosted:** the same Helm chart, or Docker Compose for small installs. Customer-supplied Postgres, a Redis-compatible store (Valkey is the reference; Redis ≥ 7.2 is accepted) and S3-compatible storage with Object Lock. Strict durability needs no extra component, because it uses a Postgres outbox (ADR-0009). The local KMS adapter keeps its master key in a file or HSM via PKCS#11 (M11).
 - **Local dev:** `infra/docker/compose.dev.yml` runs Postgres, Valkey, S3-compatible storage with object lock (implementation per TRACKING F-33) and an OTel collector with Grafana LGTM.
 
 "Redis" in this document means the Redis protocol and data model. The reference engine is Valkey (ADR-0009).

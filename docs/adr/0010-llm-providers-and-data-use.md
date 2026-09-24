@@ -1,6 +1,6 @@
 # ADR-0010: LLM providers for PRYSM's own AI features, and data-use requirements
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-24
 
 ## Context
 PRYSM's own AI features (obligation extraction, mapping proposals, LLM judges) send customer policy documents and, for judges, gateway payloads to an LLM. The owner chose Google Gemini (hosted) and Ollama (local). Customers must be able to trust that this data is never used to train a provider's models.
@@ -16,7 +16,13 @@ Gemini API Additional Terms, "Last modified: March 23, 2026" ([ai.google.dev/gem
 1. **Hard requirement (principle-level): PRYSM only sends customer data to an LLM tier that contractually excludes training on that data.** For Gemini that means the **paid Gemini API** (billing-enabled Cloud project) or **Vertex AI** once verified. The unpaid tier is never allowed, in any region.
 2. **Enforcement:**
    - A provider registry in config records each provider credential with `data_use_tier` (`paid_no_training` | `local`), the terms URL, the terms "last modified" date, and the date PRYSM verified it. The ai-service refuses to start with an external provider that lacks a `paid_no_training` attestation.
-   - **Tenant-supplied (BYO) Gemini keys** need an explicit attestation by a tenant Owner that the key belongs to a billing-enabled project. The attestation goes into the AuditLog and evidence. The console shows the data-use tier on every AI feature.
+   - **Tenant-supplied (BYO) Gemini keys** need an explicit attestation by a tenant Owner that the key belongs to a billing-enabled project. The console shows the data-use tier on every AI feature.
+   - **Every "confirmed as paid tier" attestation** (PRYSM-operated or BYO) writes an append-only AuditLog entry *and* an evidence record with:
+     - **who:** user ID, display name, role, tenant ID (or `platform` for PRYSM-operated keys), and the authentication context (session ID, MFA used: yes/no);
+     - **when:** server UTC timestamp;
+     - **which key:** `key_fingerprint = SHA-256("prysm.keyfp.v1\n" ‖ key)`, stored as hex and shown truncated to 16 hex characters in the UI. The raw key is never logged. Also recorded: provider, Cloud project ID if the attester supplies one, and PRYSM's internal credential ID;
+     - **what was attested:** `data_use_tier`, the terms URL, and the terms "last modified" date they attested against.
+   - Rotating a key or changing the terms date invalidates the attestation, so the new key or terms need a fresh one. Revocations are logged the same way.
    - A **terms review runbook** re-checks provider terms quarterly, and before any provider is added or changed. A change in the terms' "last modified" date blocks external calls for that provider until someone re-attests.
 3. **Providers:** one adapter interface. The initial implementations are **Gemini API (paid)** and an **OpenAI-compatible local endpoint** (Ollama, vLLM). Vertex AI follows once verified. The provider is selected per tenant. **Self-hosted defaults to local only.** LLM-off mode stays supported (ARCHITECTURE §8).
 4. **Disclosure:** the provider's limited-period abuse-monitoring logging is a data flow to a sub-processor. It's listed in the sub-processor list and the tenant's AI settings page, together with the tenant's option to choose local-only.

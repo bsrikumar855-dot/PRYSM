@@ -12,9 +12,9 @@ Format: Context → Decision → Consequences → Alternatives. Status is one of
 | [0006](0006-evidence-canonicalization-and-signing.md) | Evidence canonicalization, chaining and signing | Accepted |
 | [0007](0007-multi-tenancy.md) | Multi-tenancy strategy | Accepted |
 | [0008](0008-gateway-streaming.md) | Gateway streaming strategy | Accepted |
-| [0009](0009-redis-compatible-store.md) | Redis-compatible store, licensing, strict durability (amends 0004) | Proposed |
-| [0010](0010-llm-providers-and-data-use.md) | LLM providers and data-use requirements | Proposed |
+| [0009](0009-redis-compatible-store.md) | Redis-compatible store, licensing, strict durability via Postgres outbox (amends 0004) | Accepted |
+| [0010](0010-llm-providers-and-data-use.md) | LLM providers and data-use requirements | Accepted |
 
-Supporting material: [`bench/waitaof-bench.mjs`](bench/waitaof-bench.mjs) (ADR-0009 measurements).
+Supporting material: [`bench/waitaof-bench.mjs`](bench/waitaof-bench.mjs), [`bench/outbox-bench.mjs`](bench/outbox-bench.mjs) (ADR-0009 measurements).
 
 To be written when the milestone that needs them starts: identity provider build-vs-embed (M1), document parsing stack (M6), collector plugin contract (M8), PDF rendering (M9).

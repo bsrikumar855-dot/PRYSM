@@ -1,9 +1,9 @@
 # ADR-0009: Redis-compatible store, licensing, and strict durability
 
-Status: Proposed · 2026-09-24. Amends ADR-0004 (strict durability section).
+Status: Accepted · 2026-09-24. Amends ADR-0004 (strict durability).
 
 ## Context
-ADR-0004 uses a Redis-compatible store for event streams, BullMQ, rate limits and pub/sub. The owner asked for three things: a licensing comparison of Redis and Valkey for the self-hosted edition, a check of which managed services support AOF and `WAITAOF`, and measured `WAITAOF` latency.
+ADR-0004 uses a Redis-compatible store for event streams, BullMQ, rate limits and pub/sub. The owner asked for four things: a licensing comparison of Redis and Valkey for the self-hosted edition, a list of which managed services support AOF and `WAITAOF`, measured `WAITAOF` latency, and a comparison of two strict-durability designs, **(A)** a second Valkey instance with `appendfsync always` and **(B)** a transactional outbox in Postgres.
 
 ## Findings (checked 2026-09-24)
 
@@ -12,50 +12,73 @@ ADR-0004 uses a Redis-compatible store for event streams, BullMQ, rate limits an
 |---|---|---|
 | Redis ≥ 8.0 | Tri-licence, chosen by the user: RSALv2, SSPLv1, or AGPLv3 (since 8.0, May 2025). [redis.io/legal/licenses](https://redis.io/legal/licenses/) | Yes (since 7.2) |
 | Redis 7.4–7.x | RSALv2 / SSPLv1 only (not OSI open source) | Yes |
-| Valkey | BSD-3-Clause (Linux Foundation fork of Redis 7.2.4) | Yes: "Introduced in 7.2.0" ([valkey.io/commands/waitaof](https://valkey.io/commands/waitaof/)) |
+| Valkey | BSD-3-Clause (Linux Foundation fork of Redis 7.2.4) | Yes, "Introduced in 7.2.0" ([valkey.io/commands/waitaof](https://valkey.io/commands/waitaof/)), **but see the bug below** |
 
-### WAITAOF semantics under `appendfsync everysec` (from Valkey source, `src/aof.c` and `src/server.c`, `unstable` branch)
-- The fsync is timer-driven only: `server.aof_fsync == AOF_FSYNC_EVERYSEC && server.mstime - server.aof_last_fsync >= 1000` → `aof_background_fsync(...)`. Nothing forces an fsync because a client is blocked in `WAITAOF`.
-- `beforeSleep` only *wakes* blocked clients early once `fsynced_reploff` advances (`dont_sleep = 1`).
-- **So on an `everysec` instance, `WAITAOF 1 0` waits for the next once-per-second background fsync: 0–1000 ms, uniformly distributed, plus the fsync time. Expected p50 ≈ 500 ms, p95 ≈ 950 ms.** The earlier "1–10 ms" estimate in ADR-0004 was wrong for this configuration.
-- Under `appendfsync always`, the AOF is written and fsynced in `beforeSleep` before replies are flushed. The `XADD` reply therefore already implies durability, and `WAITAOF 1 0` returns immediately.
+### WAITAOF under `appendfsync everysec`
+- **Correct behaviour** (Redis 8.2): the fsync runs on the one-second timer. `WAITAOF 1 0` waits for it and never triggers one, so **≈ 1 s per call. Measured p50 1009 ms, p95 1013 ms.**
+- **Valkey 8.1.10 and Valkey `unstable` (checked 2026-09-24) return early.** In `flushAppendOnlyFile`, when the AOF buffer is empty, the `else` branch marks `fsynced_reploff_pending = primary_repl_offset` without checking `aof_last_incr_fsync_offset == aof_last_incr_size`. So data that was `write()`n but not yet fsynced is reported as fsynced. That's why WAITAOF measured sub-millisecond on Valkey. Redis fixed exactly this in [redis/redis#13793](https://github.com/redis/redis/pull/13793) ("Fix wrongly updating fsynced_reploff_pending when appendfsync=everysecond … cause the `WAITAOF` to return prematurely"). There was no matching Valkey issue or PR on 2026-09-24. **PRYSM must never rely on `WAITAOF numlocal` under `everysec` on Valkey.** Under `appendfsync always` this doesn't apply: the fsync happens in `beforeSleep` before the reply.
 
-### Measured
-Reproduce with `docs/adr/bench/waitaof-bench.mjs` (the header lists the exact `docker run` lines). Scenarios: `XADD` alone, and `XADD` + `WAITAOF 1 0` with 1 and 50 connections, 512-byte payload.
+### Measurements
+Setup: Docker Desktop 4.91 (engine 29.8.0, WSL2, 20 vCPU, 8 GB), all containers on one bridge network, client in a `node:24-alpine` container, 512-byte payloads. Valkey 8.1.10, Redis 8.2.10, Postgres 16.15 (`fsync=on`, `wal_sync_method=fdatasync`). Scripts: [`bench/waitaof-bench.mjs`](bench/waitaof-bench.mjs), [`bench/outbox-bench.mjs`](bench/outbox-bench.mjs). **The WSL2 virtual disk is not representative of production disks.** Use these numbers to compare designs; absolute figures are re-measured on the reference runner in the M4 nightly benchmark.
 
-| Engine | appendfsync | Scenario | p50 | p95 | p99 | ops/s |
-|---|---|---|---|---|---|---|
-| Valkey 8 | everysec | XADD only | _pending_ | | | |
-| Valkey 8 | everysec | XADD + WAITAOF, 1 conn | _pending_ | | | |
-| Valkey 8 | everysec | XADD + WAITAOF, 50 conns | _pending_ | | | |
-| Valkey 8 | always | XADD only | _pending_ | | | |
-| Valkey 8 | always | XADD + WAITAOF, 50 conns | _pending_ | | | |
-
-_Pending:_ Docker Desktop on the dev machine fails at startup (stale `sailor-ingest.sock`). The numbers will be filled in from a real run before this ADR is accepted. Desktop WSL2 disk timings are **not** representative of production disks, so the M4 nightly benchmark re-measures on the reference runner.
+| Store / config | Scenario | p50 ms | p95 ms | p99 ms | ops/s |
+|---|---|---|---|---|---|
+| Valkey 8.1 `everysec` | XADD, 1 conn | 0.43 | 0.80 | 1.75 | 2,070 |
+| Valkey 8.1 `everysec` | XADD + WAITAOF 1 0, 1 conn (**premature, bug**) | 0.85 | 3.08 | 4.37 | 976 |
+| Valkey 8.1 `everysec` | XADD + WAITAOF 1 0, 50 conns (**premature, bug**) | 7.47 | 15.71 | 17.85 | 5,679 |
+| Redis 8.2 `everysec` | XADD, 1 conn | 0.49 | 1.00 | 1.91 | 1,799 |
+| Redis 8.2 `everysec` | XADD + WAITAOF 1 0, 1 conn | 1009.09 | 1013.18 | 1109.95 | 1 |
+| Redis 8.2 `everysec` | XADD + WAITAOF 1 0, 50 conns | 1007.82 | 1013.50 | 1016.58 | 50 |
+| **A:** Valkey 8.1 `always` | XADD, 1 conn | 5.87 | 7.18 | 9.59 | 170 |
+| **A:** Valkey 8.1 `always` | XADD + WAITAOF 1 0, 1 conn | 5.79 | 9.41 | 23.08 | 165 |
+| **A:** Valkey 8.1 `always` | XADD + WAITAOF 1 0, 50 conns | 23.44 | 32.71 | 56.84 | 2,021 |
+| **B:** Postgres 16 outbox | INSERT, `synchronous_commit=on`, 1 conn | 2.88 | 6.67 | 12.82 | 303 |
+| **B:** Postgres 16 outbox | INSERT, `synchronous_commit=on`, 50 conns | 9.87 | 16.40 | 20.69 | 4,828 |
+| (reference) Postgres 16 | INSERT, `synchronous_commit=off`, 50 conns (not durable) | 4.82 | 9.29 | 12.54 | 9,365 |
 
 ### Managed services
-| Service | AOF / fsync control | WAITAOF | Suitable for strict events |
+| Service | AOF / fsync control | WAITAOF | Notes |
 |---|---|---|---|
-| AWS ElastiCache (Valkey / Redis OSS) | `appendonly` / `appendfsync` are not supported on Redis OSS 2.8.22 and later. Multi-AZ and AOF are mutually exclusive, and AWS recommends Multi-AZ ([Redis AOF docs](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/RedisAOF.html)). `CONFIG` is a restricted command | Not in the supported-commands list; `WAIT` is restricted on serverless ([supported commands](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/SupportedCommands.html)) | **No.** The loss window is async replication lag on failover, not "≤ 1 s AOF" |
-| AWS MemoryDB | No AOF. A multi-AZ transaction log; "Only data that is successfully persisted in the multi-AZ transaction log is visible". Single-digit-ms writes ([MemoryDB FAQ](https://aws.amazon.com/memorydb/faqs/)). `CONFIG` restricted ([restricted commands](https://docs.aws.amazon.com/memorydb/latest/devguide/restrictedcommands.html)) | Not needed: every write is durable. `numlocal=1` is not applicable without AOF | **Yes, for every tenant.** The exact ack point (commit before reply) must be confirmed with an AWS doc/support answer and a failover test in M4 |
-| Google Memorystore for Valkey | AOF with `always` / `everysec` (default) / `no` ([docs](https://docs.cloud.google.com/memorystore/docs/valkey/about-aof-persistence)) | Not documented | Yes with `always`, pending a WAITAOF check |
-| Upstash Redis | Persistence always on (block storage) ([durability](https://upstash.com/docs/redis/features/durability)) | Not documented | Not planned (per-request model, unverified fsync semantics) |
-| Azure Managed Redis | AOF persistence available ([docs](https://learn.microsoft.com/en-us/azure/redis/how-to-persistence)) | Not documented | Unverified; revisit if we target Azure |
+| AWS ElastiCache (Valkey / Redis OSS) | `appendonly` / `appendfsync` are not supported on Redis OSS 2.8.22 and later. Multi-AZ and AOF are mutually exclusive ([docs](https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/RedisAOF.html)). `CONFIG` is restricted | Not in the supported-commands list; `WAIT` is restricted on serverless ([commands](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/SupportedCommands.html)) | The loss window is async replication lag on failover |
+| AWS MemoryDB | No AOF. A multi-AZ transaction log; "Only data that is successfully persisted in the multi-AZ transaction log is visible". Single-digit-ms writes ([FAQ](https://aws.amazon.com/memorydb/faqs/)). `CONFIG` restricted ([restricted](https://docs.aws.amazon.com/memorydb/latest/devguide/restrictedcommands.html)) | Not applicable | Durable for every write. The exact ack point must be confirmed before purchase |
+| Google Memorystore for Valkey | AOF with `always` / `everysec` (default) / `no` ([docs](https://docs.cloud.google.com/memorystore/docs/valkey/about-aof-persistence)) | Not documented | Valkey-based, so the WAITAOF bug may apply |
+| Upstash Redis | Persistence always on ([durability](https://upstash.com/docs/redis/features/durability)) | Not documented | Not planned |
+| Azure Managed Redis | AOF available ([docs](https://learn.microsoft.com/en-us/azure/redis/how-to-persistence)) | Not documented | Unverified |
+
+## Strict durability: options compared
+
+| | **A: second Valkey, `appendfsync always`** | **B: Postgres transactional outbox** |
+|---|---|---|
+| Latency, 50 conns (p50 / p95) | 23.4 / 32.7 ms | **9.9 / 16.4 ms** |
+| Throughput, 50 conns | 2,021/s | **4,828/s** (Postgres group-commits concurrent fsyncs) |
+| Durability on node/AZ loss | Local disk only. Replicas are async, so a Sentinel failover can lose writes that were already acknowledged, unless every write also waits for replicas | Same as the system of record. With a synchronous standby (RDS Multi-AZ, Patroni `synchronous_mode`) it survives node and AZ loss |
+| Operational complexity | +1 stateful service per region: AOF, backups, HA, monitoring, config checks | +1 table and a loop in the existing shard ingest worker. Needs autovacuum tuning and adds more WAL on the primary |
+| Cost (SaaS) | Another managed instance | No new service; more IOPS/WAL on the existing RDS |
+| Self-hosted footprint | +1 container with a persistent volume | None |
+| Hash chain, single writer per tenant | Unchanged (stream shard consumer) | The shard's ingest worker, already the single writer, reads its shard's outbox rows, appends evidence and deletes the rows **in one transaction**, so exactly once with no dedupe step |
+| Exposure to the Valkey WAITAOF bug | Only via `always` (unaffected), but WAITAOF is a misleading assertion there | None |
+| New trust boundary | None (gateway → Valkey exists) | **gateway → Postgres**: INSERT-only role on one table, with RLS |
+| Load on the system-of-record DB | None | Proportional to strict-tenant traffic. Gateways connect through PgBouncer |
 
 ## Decision
-1. **Valkey is the reference engine** for local dev, CI, the Helm chart and the Compose bundle, because BSD-3 keeps the self-hosted edition free of copyleft or source-available terms that enterprise legal teams often block. The code targets the Redis ≥ 7.2 command set only (no Valkey-only or Redis-8-only commands), so customers may bring Redis 7.2+ under whatever licence they accept. PRYSM does not redistribute Redis. BullMQ lists Valkey as supported ([bullmq.io](https://bullmq.io/)), and CI's Testcontainers integration tests run against Valkey.
-2. **Strict durability does not use WAITAOF on an `everysec` instance** (0–1000 ms). Instead, events for strict tenants go to a **durable stream store**:
-   - **Self-hosted / local:** a second Valkey instance with `appendfsync always` (or a single `always` instance if the customer wants every tenant strict). The gateway writes to it on a **dedicated connection pool**, because `WAITAOF` covers every earlier write on its connection and blocks it. After `XADD` it issues `WAITAOF 1 0 <timeout>` as a cheap assertion, which returns immediately under `always` and errors if AOF has been disabled. A failed assertion counts as an enforcement failure, handled by the app's fail mode.
-   - **SaaS (AWS):** proposed: **MemoryDB for all event streams and BullMQ** (durable for every tenant, so SaaS has no strict/standard split), and **ElastiCache for Valkey** for rate limits, caches and pub/sub, where losing a counter on failover is acceptable. MemoryDB and a second AWS service are **new paid dependencies, so this needs owner approval** before M4.
-3. **Strict mode request flow:** a durable `request.started` event is written *before* the upstream call, and a durable `request.completed` event before the terminal chunk (`[DONE]` / `message_stop`) is released. A gateway crash mid-stream therefore always leaves evidence that the request started. Under concurrency, `always` fsyncs once per event-loop iteration for every client, which amortizes the cost.
-4. **Budgets:** the 30 ms p95 gateway budget (ADR-0008) **excludes** strict mode. Strict mode has its own budget, **proposed as ≤ 50 ms p95 added in total** (30 ms deterministic + ≤ 20 ms for the two durable enqueues). It becomes binding only once the reference-runner benchmark confirms it's achievable; if not, the budget is revised in this ADR, never silently. It's measured as a separate scenario in the nightly benchmark.
-5. **Configuration checks at boot:** where `CONFIG GET` is allowed (Valkey/Redis self-hosted), verify `appendonly`, `appendfsync` and `maxmemory-policy noeviction` for each store's role, and refuse to start on a mismatch. Managed services with `CONFIG` restricted declare their store type (`memorydb`, `elasticache`) in config instead, and the boot check validates it against `INFO server` / `INFO persistence`.
+1. **Valkey is the reference engine** for local dev, CI, Helm and Compose, because BSD-3 avoids copyleft or source-available terms in the self-hosted bundle. Code uses only the Redis ≥ 7.2 command set, so customers may bring Redis 7.2+. PRYSM does not redistribute Redis. BullMQ lists Valkey as supported ([bullmq.io](https://bullmq.io/)), and CI integration tests run against Valkey. **PRYSM uses no `WAITAOF` anywhere** (see the bug above).
+2. **Strict durability uses option B, the Postgres transactional outbox.** A is rejected (see Alternatives).
+   - Table `strict_outbox(id bigint identity PK, tenant_id uuid, event_id uuid UNIQUE, shard smallint, created_at timestamptz, payload jsonb)` with `ENABLE` + `FORCE ROW LEVEL SECURITY` and a composite tenant FK. Payload fields follow the tenant's retention mode and field encryption rules.
+   - **Gateway write path:** a dedicated pool (via PgBouncer in SaaS) connects as role `prysm_gateway_outbox`, which has `INSERT` only on `strict_outbox`, no `SELECT`, and no other tables. `set_config('app.tenant_id', …, true)` plus the `INSERT` are pipelined in one transaction and one round trip, with `synchronous_commit=on`. `request.started` is committed **before** the upstream call. `request.completed` is committed **before** the terminal chunk (`[DONE]` / `message_stop`) is released. A DB error or timeout → the app's fail-open/closed mode, evidenced as usual.
+   - **Relay into the chain:** the ingest worker that owns shard *s* (ADR-0004) polls every 50 ms. Per tenant it runs one transaction: `SELECT … FROM strict_outbox WHERE shard = s ORDER BY id LIMIT 500 FOR UPDATE SKIP LOCKED` → append evidence (holding the chain-head lock) → `DELETE` those rows → commit. It never uses a high-water mark on `id` (identity values aren't commit-ordered), so a late-committing row is simply picked up by a later batch. Chain order is append order, and `occurred_at` keeps the event time.
+   - Tenants that aren't strict are unchanged: Redis Streams with `everysec`.
+3. **Budgets:** the 30 ms p95 gateway budget (ADR-0008) **excludes** strict mode. Strict mode's own budget: **≤ 50 ms p95 added to time-to-first-byte** (30 ms deterministic + ≤ 20 ms for the `request.started` commit) and **≤ 20 ms p95 added before the terminal chunk** (the `request.completed` commit). The desktop measurement is 16.4 ms p95 per commit at 50 connections. The budget becomes binding once the reference-runner nightly benchmark confirms it, and it gets its own benchmark scenario.
+4. **SaaS managed stores:** **preferred option** = MemoryDB for event streams + BullMQ (because ElastiCache can't provide AOF durability) and ElastiCache for Valkey for rate limits, caches and pub/sub. **No paid service is approved. The purchase decision is deferred to M4** (TRACKING F-37), and everything runs locally until then. Strict durability doesn't depend on that decision, because it lives in Postgres.
+5. **Configuration checks at boot:** where `CONFIG GET` is allowed, verify `appendonly yes`, `appendfsync everysec` (or stricter) and `maxmemory-policy noeviction`, and refuse to start on a mismatch. Managed stores with `CONFIG` restricted declare their type in config instead, which is validated against `INFO`.
 
 ## Consequences
-- Two Redis-compatible stores per region (standard + durable) in SaaS and in strict self-hosted setups. That's more to operate, but each has a clear role.
-- The standard (non-strict) SaaS loss window on ElastiCache is replication lag on failover. That's acceptable only because SaaS event streams live on MemoryDB (decision 2). If MemoryDB is rejected, ADR-0004's "≤ 1 s" claim must be restated for SaaS.
+- The gateway gains a narrowly scoped Postgres connection (threat model updated). Connection count scales with gateway pods, so PgBouncer is required in SaaS and recommended self-hosted.
+- High insert/delete churn on `strict_outbox`: start with per-table aggressive autovacuum settings. Move to daily partitions with `DROP PARTITION` only if bloat is measured.
+- Evidence for strict events reaches the chain ≤ ~100 ms after commit (poll interval + batch). It's already durable in Postgres before that.
+- The early-return WAITAOF bug in Valkey should be reported upstream (owner decision; it's an external action).
 
-## Alternatives
-- **WAITAOF on an `everysec` instance:** rejected, 0–1000 ms per strict request.
-- **`appendfsync always` for the whole shared instance:** simplest, but every tenant, plus BullMQ and rate limiting, pays the fsync cost.
-- **Kafka with `acks=all` for strict tenants:** strong durability, but another stateful system (see ADR-0004 alternatives).
+## Alternatives (rejected)
+- **A: second Valkey instance with `appendfsync always`.** It was slower in our measurement (p95 32.7 vs 16.4 ms, 2.4× lower throughput), adds a stateful service to every deployment, and its async replication can lose acknowledged writes on failover, so its durability is weaker than the Postgres system of record.
+- **WAITAOF on an `everysec` instance:** ≈ 1 s per call when implemented correctly (Redis 8.2), and not durable on Valkey 8.1 because of the bug.
+- **`appendfsync always` on the shared instance:** every tenant, plus BullMQ and rate limiting, would pay the fsync cost.
+- **Kafka with `acks=all`:** another stateful system (see ADR-0004).
