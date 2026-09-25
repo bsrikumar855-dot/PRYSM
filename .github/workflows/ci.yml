@@ -1,0 +1,145 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+  DATABASE_URL_OWNER: postgres://prysm_owner:prysm-owner-dev-only@127.0.0.1:5432/prysm
+  DATABASE_URL_APP: postgres://prysm_app:prysm-app-dev-only@127.0.0.1:5432/prysm
+  VALKEY_URL: redis://127.0.0.1:6379
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - uses: ./.github/actions/setup
+      - run: pnpm format:check
+      - run: pnpm check:repo
+      - run: pnpm test:scripts
+      - run: pnpm turbo run lint
+      - name: Conventional commits
+        if: github.event_name == 'pull_request'
+        run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
+
+  typecheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm turbo run typecheck
+
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres-dev-only }
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+      valkey:
+        image: valkey/valkey:9.1.2@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+        ports: ['6379:6379']
+        options: --health-cmd "valkey-cli ping" --health-interval 2s --health-retries 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Provision dev roles (CI mirror of the compose init script)
+        run: docker exec -i ${{ job.services.postgres.id }} psql -v ON_ERROR_STOP=1 -U postgres < infra/docker/postgres/init/00-dev-roles.sql
+      - run: pnpm db:migrate
+      - run: pnpm turbo run test
+
+  migrations:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres-dev-only }
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: docker exec -i ${{ job.services.postgres.id }} psql -v ON_ERROR_STOP=1 -U postgres < infra/docker/postgres/init/00-dev-roles.sql
+      - name: Apply migrations to an empty database
+        run: pnpm db:migrate
+      - name: Re-applying is a no-op
+        run: pnpm db:migrate
+      - name: Migration files are consistent
+        run: pnpm --filter @prysm/db check:schema
+      - name: Schema has no ungenerated changes
+        run: |
+          pnpm --filter @prysm/db generate
+          git diff --exit-code -- packages/db/migrations
+          test -z "$(git status --porcelain -- packages/db/migrations)"
+
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - run: pnpm turbo run build
+
+  security:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 }
+      - name: Secrets (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --redact --exit-code 1
+      - name: Known-vulnerable dependencies (OSV)
+        run: docker run --rm -v "$PWD:/src" ghcr.io/google/osv-scanner:v2.6.0 scan source --recursive /src
+      - name: Dependency review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+      - name: SAST (Semgrep)
+        run: docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.178.0 semgrep scan --config p/default --error --metrics off
+      - name: SBOM (CycloneDX)
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          artifact-name: sbom.cdx.json
+
+  compose-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version-file: .nvmrc }
+      - name: Start the full stack
+        run: docker compose -f infra/docker/compose.dev.yml --profile app up -d --build --wait --wait-timeout 300
+      - name: M0 verification (readiness, trace in Tempo, logs in Loki, no payload in logs)
+        run: node scripts/verify-m0.mjs
+      - name: Object Lock conformance of the compose store (ADR-0011)
+        run: |
+          docker run --rm --network prysm-dev_default -v "$PWD/infra/objectstore-conformance:/c:ro" \
+            -e S3_ENDPOINT=http://seaweedfs:8333 -e AWS_ACCESS_KEY_ID=prysm-admin -e AWS_SECRET_ACCESS_KEY=prysm-admin-dev-only \
+            --entrypoint bash amazon/aws-cli:2.37.1@sha256:b0dd5a4d216a1786863541a201baa7b7b4c5032bec9c6e72c38d01cafd7e8db8 /c/conformance.sh
+      - name: Container image scan (Trivy, fixable HIGH/CRITICAL)
+        run: |
+          for img in $(docker compose -f infra/docker/compose.dev.yml --profile app config --images | grep '^prysm-dev-'); do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache aquasec/trivy:0.74.0 image \
+              --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL --no-progress "$img"
+          done
+      - name: Service logs on failure
+        if: failure()
+        run: docker compose -f infra/docker/compose.dev.yml --profile app logs --no-color
+      - if: always()
+        run: docker compose -f infra/docker/compose.dev.yml --profile app down -v

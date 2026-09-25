@@ -3,10 +3,12 @@
 Status: Accepted · 2026-09-24
 
 ## Context
+
 Tenant isolation is absolute (principle 4). We need SaaS density, data residency, and a single-tenant self-hosted edition from the same code.
 
 ## Decision
-- **Shared database, shared schema, `tenant_id` on every tenant-scoped table**, enforced by **Postgres RLS** *and* the application layer.
+
+- **Shared database, shared schema, `tenant_id` on every tenant-scoped table**, enforced by **Postgres RLS** _and_ the application layer.
 - Roles:
   - `prysm_owner`: owns the tables and runs migrations. Never used at runtime.
   - `prysm_app`: runtime role for api, gateway and workers. Not the owner, `NOBYPASSRLS`. `FORCE ROW LEVEL SECURITY` on every tenant table.
@@ -26,11 +28,13 @@ Tenant isolation is absolute (principle 4). We need SaaS density, data residency
 - **Self-hosted:** the same schema and RLS with one tenant.
 
 ## Tests (required in CI)
+
 1. The coverage test enumerates every table with a `tenant_id` column and asserts RLS is enabled, forced, and has a policy.
 2. A generic isolation test seeds two tenants and, for every table, asserts that `prysm_app` under tenant A sees 0 rows of tenant B's data and cannot insert or update B's rows.
 3. API-level tests: each endpoint class gets a request with tenant A's credentials that targets tenant B's resource IDs, and must return 404 (not 403, so existence doesn't leak).
 4. A lint rule: no DB access outside `withTenant`, and the raw pool is not exported.
 
 ## Alternatives
+
 - **Schema per tenant:** migrations fan out, the connection and catalog get bloated, and RLS is still needed for the shared tables.
 - **Database per tenant:** the strongest isolation, but costly and operationally heavy at SaaS scale. It's effectively what self-hosted and a future "dedicated cell" tier give enterprise customers who require it.

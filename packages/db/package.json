@@ -1,0 +1,35 @@
+{
+  "name": "@prysm/db",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "dist",
+    "migrations",
+    "drizzle.config.ts"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "migrate": "drizzle-kit migrate",
+    "generate": "drizzle-kit generate",
+    "check:schema": "drizzle-kit check"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.2",
+    "pg": "8.23.0",
+    "@types/pg": "8.23.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.10"
+  }
+}

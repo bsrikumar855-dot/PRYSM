@@ -1,0 +1,33 @@
+# Candidate S3 stores for ADR-0011. Local evaluation only; the credentials are throwaway test values.
+#   docker compose -f infra/objectstore-conformance/candidates.compose.yml up -d
+name: prysm-objectstore-candidates
+
+services:
+  versitygw:
+    image: versity/versitygw:v1.8.0
+    environment:
+      ROOT_ACCESS_KEY: conformance
+      ROOT_SECRET_KEY: conformance-local-only
+    command: ['--port', ':7070', '--iam-dir', '/iam', 'posix', '--versioning-dir', '/versions', '/buckets']
+    volumes: [vgw-iam:/iam, vgw-versions:/versions, vgw-buckets:/buckets]
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.47
+    command: ['server', '-dir=/data', '-s3', '-s3.port=8333', '-s3.config=/etc/seaweedfs/s3.json']
+    volumes:
+      - swfs-data:/data
+      - ./seaweedfs-s3.json:/etc/seaweedfs/s3.json:ro
+
+  rustfs:
+    image: rustfs/rustfs:1.0.0
+    environment:
+      RUSTFS_ACCESS_KEY: conformance
+      RUSTFS_SECRET_KEY: conformance-local-only
+    volumes: [rustfs-data:/data]
+
+volumes:
+  vgw-iam: {}
+  vgw-versions: {}
+  vgw-buckets: {}
+  swfs-data: {}
+  rustfs-data: {}

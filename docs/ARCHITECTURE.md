@@ -54,14 +54,14 @@ flowchart LR
 
 ## 2. Services
 
-| Service | Language | Responsibility | State | Scales by |
-|---|---|---|---|---|
-| `gateway` | TS (Fastify + undici) | OpenAI/Anthropic-compatible proxy. Runs detectors and deterministic policy inline, handles streaming, enforces rate limits and budgets, emits GatewayEvents | Stateless. In-memory compiled policies; local disk spool for events when Redis is unavailable | Horizontal pods, per region |
-| `api` | TS (Fastify) | Public REST `/v1`, auth, RBAC, CRUD for the domain, policy publish, simulation requests, log ingestion, webhooks in, auditor portal API | Stateless | Horizontal |
-| `web` | TS (Next.js App Router) | Customer console and auditor portal. Talks only to `api` | Stateless | Horizontal |
-| `workers` | TS | Event ingest (evidence append, evaluations), scheduled drift checks, collectors, document pipeline orchestration, LLM-judge jobs, reports and audit packs, notifications, anchoring, retention | Stateless. Jobs live in Redis | Horizontal per queue |
-| `ai-service` | Python 3.12 (FastAPI) | Document parsing with layout, segmentation, classification, embeddings, reranking, LLM-judge calls. **Has no database credentials.** It receives inputs from workers and returns results; workers persist them | Stateless | Horizontal |
-| `verifier-cli` | Go | Offline verification of audit packs: chain, Merkle proofs, signatures, RFC 3161 tokens | None | n/a |
+| Service        | Language                | Responsibility                                                                                                                                                                                                 | State                                                                                         | Scales by                   |
+| -------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------- |
+| `gateway`      | TS (Fastify + undici)   | OpenAI/Anthropic-compatible proxy. Runs detectors and deterministic policy inline, handles streaming, enforces rate limits and budgets, emits GatewayEvents                                                    | Stateless. In-memory compiled policies; local disk spool for events when Redis is unavailable | Horizontal pods, per region |
+| `api`          | TS (Fastify)            | Public REST `/v1`, auth, RBAC, CRUD for the domain, policy publish, simulation requests, log ingestion, webhooks in, auditor portal API                                                                        | Stateless                                                                                     | Horizontal                  |
+| `web`          | TS (Next.js App Router) | Customer console and auditor portal. Talks only to `api`                                                                                                                                                       | Stateless                                                                                     | Horizontal                  |
+| `workers`      | TS                      | Event ingest (evidence append, evaluations), scheduled drift checks, collectors, document pipeline orchestration, LLM-judge jobs, reports and audit packs, notifications, anchoring, retention                 | Stateless. Jobs live in Redis                                                                 | Horizontal per queue        |
+| `ai-service`   | Python 3.12 (FastAPI)   | Document parsing with layout, segmentation, classification, embeddings, reranking, LLM-judge calls. **Has no database credentials.** It receives inputs from workers and returns results; workers persist them | Stateless                                                                                     | Horizontal                  |
+| `verifier-cli` | Go                      | Offline verification of audit packs: chain, Merkle proofs, signatures, RFC 3161 tokens                                                                                                                         | None                                                                                          | n/a                         |
 
 Shared packages: `policy-engine` (pure evaluator, used by gateway, workers and api), `detectors` (pure), `evidence` (canonicalization, hashing, Merkle, signing, used by workers and api), `db` (schema, migrations, RLS, `withTenant()`), `core-types` (zod schemas, the source of the OpenAPI spec).
 
@@ -189,15 +189,15 @@ flowchart TB
   WK --> AIS --> OWN
 ```
 
-| Boundary | What crosses it | Key controls |
-|---|---|---|
-| TB1→TB2 | Prompts and responses, console sessions, API keys | TLS 1.2+, scoped API keys (hashed at rest), OIDC/SAML sessions with MFA, rate limits, zod validation, CSP |
-| TB2→TB4 (gateway → Postgres) | Strict-tenant durable events only | Dedicated pool, role `prysm_gateway_outbox` with INSERT-only on `strict_outbox`, RLS `WITH CHECK`, no SELECT on anything, PgBouncer (ADR-0009) |
-| TB2→TB5 (gateway → LLM) | Customer prompts (possibly redacted) | Upstream allowlist per provider, egress restricted to provider hosts, customer's provider credentials encrypted with tenant DEK |
-| TB3→TB5 (workers → collectors / webhooks) | Customer cloud credentials, outbound calls | SSRF guard (DNS resolve → deny private/link-local/metadata ranges, re-check on redirect), least-privilege scopes, encrypted credentials |
-| TB3 (workers → ai-service) | Untrusted documents | ai-service has no DB creds, output is schema-validated, citation spans checked mechanically, humans approve |
-| TB2/TB3→TB4 | All tenant data | RLS, non-owner roles, per-tenant DEKs, evidence write-only grants |
-| Off-platform anchor | Signed Merkle roots | Customer-held copy and TSA make history rewrites detectable |
+| Boundary                                  | What crosses it                                   | Key controls                                                                                                                                   |
+| ----------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| TB1→TB2                                   | Prompts and responses, console sessions, API keys | TLS 1.2+, scoped API keys (hashed at rest), OIDC/SAML sessions with MFA, rate limits, zod validation, CSP                                      |
+| TB2→TB4 (gateway → Postgres)              | Strict-tenant durable events only                 | Dedicated pool, role `prysm_gateway_outbox` with INSERT-only on `strict_outbox`, RLS `WITH CHECK`, no SELECT on anything, PgBouncer (ADR-0009) |
+| TB2→TB5 (gateway → LLM)                   | Customer prompts (possibly redacted)              | Upstream allowlist per provider, egress restricted to provider hosts, customer's provider credentials encrypted with tenant DEK                |
+| TB3→TB5 (workers → collectors / webhooks) | Customer cloud credentials, outbound calls        | SSRF guard (DNS resolve → deny private/link-local/metadata ranges, re-check on redirect), least-privilege scopes, encrypted credentials        |
+| TB3 (workers → ai-service)                | Untrusted documents                               | ai-service has no DB creds, output is schema-validated, citation spans checked mechanically, humans approve                                    |
+| TB2/TB3→TB4                               | All tenant data                                   | RLS, non-owner roles, per-tenant DEKs, evidence write-only grants                                                                              |
+| Off-platform anchor                       | Signed Merkle roots                               | Customer-held copy and TSA make history rewrites detectable                                                                                    |
 
 ## 7. Deployment topologies
 
@@ -216,7 +216,7 @@ flowchart TB
 - **Versioning:** every GatewayEvent, Evaluation and Finding records the policy version hash, detector versions and gateway build, so any verdict can be reproduced.
 - **PRYSM's own LLM calls:** a single provider-agnostic adapter in the ai-service. Each call logs provider, model, template id@version, SHA-256 of the inputs, output, token counts and latency, as an evidence record. The initial providers are **Google Gemini API** (hosted) and **Ollama**, plus any OpenAI-compatible local endpoint such as vLLM (self-hosted, no external LLM). The provider is selected per tenant. **Hard requirement (ADR-0010):** customer data only goes to a provider tier that contractually excludes training on it: the paid Gemini API (billing-enabled project) or Vertex AI once verified. Never the unpaid tier.
 - **LLM-off mode:** every deterministic feature (gateway, policies, detectors, evidence, findings, reports) works with no LLM configured. LLM-dependent features (obligation extraction, mapping proposals, `llm_judge` rules) are clearly marked unavailable, never silently skipped.
-- **Object storage** is behind an `ObjectStore` interface (put with retention, get, lock status, expire). The Object Lock COMPLIANCE requirement is checked at boot, and the process refuses to start without it. Which local/self-hosted implementation to use depends on MinIO's current licensing and distribution status, which is checked before M0 (TRACKING F-33).
+- **Object storage** is behind an `ObjectStore` interface (put with retention, get, lock status, expire). The Object Lock COMPLIANCE requirement is checked at boot, and the process refuses to start without it. SaaS uses cloud-native Object Lock (S3 COMPLIANCE first). Dev, CI and self-hosted use SeaweedFS (RustFS also supported), and every store must pass `infra/objectstore-conformance/conformance.sh` (ADR-0011).
 
 ## 9. Invariants (each backed by a test)
 

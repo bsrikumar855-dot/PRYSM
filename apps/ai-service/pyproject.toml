@@ -1,0 +1,51 @@
+[project]
+name = "prysm-ai-service"
+version = "0.0.0"
+description = "PRYSM document parsing, extraction and LLM-judge service (no database access by design)"
+license = "Apache-2.0"
+requires-python = "==3.12.*"
+dependencies = [
+  "fastapi==0.141.1",
+  "uvicorn==0.53.0",
+  "pydantic==2.13.5",
+  "pydantic-settings==2.15.0",
+  "opentelemetry-distro==0.65b0",
+  "opentelemetry-instrumentation-fastapi==0.65b0",
+  "opentelemetry-exporter-otlp-proto-http==1.44.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx2==2.13.0",
+  "pytest==9.1.1",
+  "ruff==0.16.8",
+  "mypy==2.3.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "ai_service"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "S", "A", "C4", "SIM", "RUF", "PL", "T20"]
+ignore = ["PLR2004"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

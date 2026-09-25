@@ -1,0 +1,19 @@
+packages:
+  - apps/*
+  - packages/*
+
+saveExact: true
+engineStrict: true
+# Supply chain: resolve only versions published >= 7 days ago (matches the Dependabot cooldown), never let a
+# package downgrade its trust evidence, and require explicit approval for build scripts.
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+blockExoticSubdeps: true # transitive deps only from the registry (no git/tarball URLs)
+strictDepBuilds: true
+allowBuilds:
+  esbuild: true # postinstall verifies the platform-native binary it runs; widely used, needed by drizzle-kit and vite
+  protobufjs: false # postinstall only checks CLI deps; runtime needs no build
+# One esbuild for the whole tree. drizzle-kit pulled 0.18 (GHSA-67mh-4wv8-2f99) and 0.25, whose native binary is
+# built with Go 1.23 (stdlib CVEs flagged by Trivy). 0.28 keeps the transform API that drizzle-kit, vite and tsx use.
+overrides:
+  esbuild: 0.28.2

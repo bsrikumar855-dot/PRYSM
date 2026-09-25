@@ -1,0 +1,4 @@
+# Reviewed false positives only (fingerprint = commit:file:rule:line). Never add real secrets here.
+# docs/ARCHITECTURE.md:204 is prose describing the dev stack ("Postgres, Valkey, S3-compatible storage ...").
+ac9c2bfe5084ab3bc6153c1347ce0cf369efbbb9:docs/ARCHITECTURE.md:generic-api-key:204
+119268c0718c2dfe635f66898cd8c4b383957788:docs/ARCHITECTURE.md:generic-api-key:204

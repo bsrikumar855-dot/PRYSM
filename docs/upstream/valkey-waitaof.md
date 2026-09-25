@@ -33,11 +33,11 @@ Under `everysec`, the background fsync runs at most about once per second (`serv
 
 ## Actual behavior
 
-| Image | Server version | 20 × (SET + WAITAOF 1 0 0) |
-|---|---|---|
-| `valkey/valkey:9.1.2` (`sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd`) | valkey 9.1.2 | **992 ms** |
-| `valkey/valkey:8.1` (`sha256:640c5e62cea04b6d6f2084232651d0cc70362d31f4f805e7be94dbed6855e8f2`) | valkey 8.1.10 | **984 ms** |
-| `redis:8.2` (`sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c`) | redis 8.2.10 | 20,227 ms |
+| Image                                                                                             | Server version | 20 × (SET + WAITAOF 1 0 0) |
+| ------------------------------------------------------------------------------------------------- | -------------- | -------------------------- |
+| `valkey/valkey:9.1.2` (`sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd`) | valkey 9.1.2   | **992 ms**                 |
+| `valkey/valkey:8.1` (`sha256:640c5e62cea04b6d6f2084232651d0cc70362d31f4f805e7be94dbed6855e8f2`)   | valkey 8.1.10  | **984 ms**                 |
+| `redis:8.2` (`sha256:164c759a0c342ee69d08fc99219382b0fd682181465c0df2e0e6911f4c85d73c`)           | redis 8.2.10   | 20,227 ms                  |
 
 Every `WAITAOF` returned `1) (integer) 1  2) (integer) 0`, with no timeouts. A separate run of 200 pairs on 9.1.2 finished in 1,057–1,171 ms, far faster than the fsync schedule allows. Most of the ~1 s is `docker exec` / `valkey-cli` start-up overhead.
 

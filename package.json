@@ -1,0 +1,43 @@
+{
+  "name": "prysm",
+  "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@12.6.0+sha512.3ef68f951cb111ac204b4a5a16f0b2ddf0da56a96e0413e81d855d9f0b55ef926714709028e1cd00c405c2c5fb7b9e8ec4dc46777c805d0373c2f2ff00fd20ec",
+  "engines": {
+    "node": ">=24.14.0 <25"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "pnpm format:check && pnpm check:repo && pnpm test:scripts && turbo run lint typecheck test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:repo": "node scripts/check-wording.mjs && node scripts/check-todos.mjs",
+    "infra:up": "docker compose -f infra/docker/compose.dev.yml up -d --wait postgres valkey seaweedfs otel-lgtm && docker compose -f infra/docker/compose.dev.yml run --rm seaweedfs-init",
+    "infra:down": "docker compose -f infra/docker/compose.dev.yml down",
+    "stack:up": "docker compose -f infra/docker/compose.dev.yml --profile app up -d --build --wait",
+    "stack:down": "docker compose -f infra/docker/compose.dev.yml --profile app down",
+    "db:migrate": "pnpm --filter @prysm/db migrate",
+    "verify:m0": "node scripts/verify-m0.mjs",
+    "test:scripts": "node --test \"scripts/**/*.test.mjs\""
+  },
+  "devDependencies": {
+    "@changesets/cli": "3.0.3",
+    "@commitlint/cli": "21.2.2",
+    "@commitlint/config-conventional": "21.2.2",
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.13.5",
+    "@vitest/coverage-v8": "5.0.1",
+    "eslint": "10.10.0",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.12.0",
+    "prettier": "3.9.8",
+    "turbo": "2.10.13",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.1"
+  }
+}

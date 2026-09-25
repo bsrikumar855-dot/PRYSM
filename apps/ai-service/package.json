@@ -1,0 +1,12 @@
+{
+  "name": "@prysm/ai-service",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "uv run --env-file ../../.env --env-file service.env opentelemetry-instrument python -m ai_service",
+    "lint": "uv run ruff check . && uv run ruff format --check .",
+    "typecheck": "uv run mypy",
+    "test": "uv run pytest"
+  }
+}
