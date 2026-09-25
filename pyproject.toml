@@ -1,0 +1,6 @@
+# uv workspace root (ADR-0001). Python packages live under apps/ and sdks/.
+[tool.uv]
+required-version = ">=0.12.5"
+
+[tool.uv.workspace]
+members = ["apps/ai-service"]
