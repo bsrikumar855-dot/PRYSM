@@ -34,7 +34,9 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const violations = findViolations(repoTextFiles(), allowlist);
   for (const v of violations) console.error(`${v.path}:${v.line}: legal-compliance claim: ${v.text}`);
   if (violations.length) {
-    console.error(`\n${violations.length} wording violation(s). Use "control status" / "evidence of" (CLAUDE.md principle 7).`);
+    console.error(
+      `\n${violations.length} wording violation(s). Use "control status" / "evidence of" (CLAUDE.md principle 7).`,
+    );
     process.exit(1);
   }
   console.log('wording check ok');

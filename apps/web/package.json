@@ -15,7 +15,8 @@
   "dependencies": {
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/sdk-node": "0.222.0",
-    "next": "16.3.6",
+    "@prysm/platform": "workspace:*",
+    "next": "16.3.5",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

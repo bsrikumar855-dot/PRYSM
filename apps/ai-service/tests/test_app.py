@@ -3,6 +3,9 @@ import logging
 
 import pytest
 from fastapi.testclient import TestClient
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 from ai_service.app import create_app, request_id_from
 
@@ -37,3 +40,17 @@ def test_request_log_uses_route_template_not_raw_path(caplog: pytest.LogCaptureF
     assert record.__dict__["request_id"] == "req-2"
     assert record.__dict__["status_code"] == 200
     assert "CANARY" not in json.dumps({k: str(v) for k, v in record.__dict__.items()})
+
+
+def test_query_strings_never_reach_traces() -> None:
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    TestClient(create_app(tracer_provider=provider)).get("/readyz?token=CANARY-trace")
+
+    spans = exporter.get_finished_spans()
+    assert spans, "expected server spans"
+    rendered = json.dumps([dict(s.attributes or {}) for s in spans], default=str)
+    assert "CANARY" not in rendered
+    server = next(s for s in spans if (s.attributes or {}).get("url.query"))
+    assert (server.attributes or {})["url.query"] == "[REDACTED]"

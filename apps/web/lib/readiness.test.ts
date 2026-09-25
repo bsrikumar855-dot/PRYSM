@@ -8,7 +8,10 @@ describe('checkReadiness', () => {
       calls.push(url.toString());
       return Promise.resolve(new Response('{}', { status: 200 }));
     }) as typeof fetch;
-    expect(await checkReadiness('http://api:4000', fake)).toEqual({ status: 'ready', checks: [{ name: 'api', ok: true }] });
+    expect(await checkReadiness('http://api:4000', fake)).toEqual({
+      status: 'ready',
+      checks: [{ name: 'api', ok: true }],
+    });
     expect(calls).toEqual(['http://api:4000/healthz']);
   });
 

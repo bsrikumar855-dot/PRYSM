@@ -17,12 +17,19 @@ describe('database baseline (ADR-0007)', () => {
   });
 
   it('runtime roles are not superusers, cannot bypass RLS, and cannot create roles or databases', async () => {
-    const { rows } = await owner.query<{ rolname: string; rolsuper: boolean; rolbypassrls: boolean; rolcreaterole: boolean; rolcreatedb: boolean }>(
+    const { rows } = await owner.query<{
+      rolname: string;
+      rolsuper: boolean;
+      rolbypassrls: boolean;
+      rolcreaterole: boolean;
+      rolcreatedb: boolean;
+    }>(
       'SELECT rolname, rolsuper, rolbypassrls, rolcreaterole, rolcreatedb FROM pg_roles WHERE rolname = ANY($1) ORDER BY rolname',
       [RUNTIME_ROLES],
     );
     expect(rows.map((r) => r.rolname)).toEqual([...RUNTIME_ROLES].sort());
-    for (const r of rows) expect(r).toMatchObject({ rolsuper: false, rolbypassrls: false, rolcreaterole: false, rolcreatedb: false });
+    for (const r of rows)
+      expect(r).toMatchObject({ rolsuper: false, rolbypassrls: false, rolcreaterole: false, rolcreatedb: false });
   });
 
   it('owner cannot bypass RLS either, and runtime roles own no objects', async () => {
@@ -79,14 +86,18 @@ describe('findRlsGaps', () => {
       await client.query('CREATE TABLE public.t_no_rls (id int, tenant_id uuid)');
       await client.query('CREATE TABLE public.t_not_forced (id int, tenant_id uuid)');
       await client.query('ALTER TABLE public.t_not_forced ENABLE ROW LEVEL SECURITY');
-      await client.query("CREATE POLICY p ON public.t_not_forced USING (tenant_id = current_setting('app.tenant_id', true)::uuid)");
+      await client.query(
+        "CREATE POLICY p ON public.t_not_forced USING (tenant_id = current_setting('app.tenant_id', true)::uuid)",
+      );
       await client.query('CREATE TABLE public.t_no_policy (id int, tenant_id uuid)');
       await client.query('ALTER TABLE public.t_no_policy ENABLE ROW LEVEL SECURITY');
       await client.query('ALTER TABLE public.t_no_policy FORCE ROW LEVEL SECURITY');
       await client.query('CREATE TABLE public.t_ok (id int, tenant_id uuid)');
       await client.query('ALTER TABLE public.t_ok ENABLE ROW LEVEL SECURITY');
       await client.query('ALTER TABLE public.t_ok FORCE ROW LEVEL SECURITY');
-      await client.query("CREATE POLICY p ON public.t_ok USING (tenant_id = current_setting('app.tenant_id', true)::uuid)");
+      await client.query(
+        "CREATE POLICY p ON public.t_ok USING (tenant_id = current_setting('app.tenant_id', true)::uuid)",
+      );
       await client.query('CREATE TABLE public.t_global (id int)');
 
       const gaps = await findRlsGaps(client);

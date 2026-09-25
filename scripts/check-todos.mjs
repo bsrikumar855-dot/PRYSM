@@ -19,7 +19,11 @@ export function findViolations(files, ids) {
     text.split('\n').forEach((line, i) => {
       for (const m of line.matchAll(MARKER)) {
         const id = m[3];
-        const problem = !id ? `${m[1]} without a (T-###) id` : !ids.has(id) ? `${id} not registered in TRACKING.md §4` : null;
+        const problem = !id
+          ? `${m[1]} without a (T-###) id`
+          : !ids.has(id)
+            ? `${id} not registered in TRACKING.md §4`
+            : null;
         if (problem) violations.push({ path, line: i + 1, text: line.trim(), problem });
       }
     });

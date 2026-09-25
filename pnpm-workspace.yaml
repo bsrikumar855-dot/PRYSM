@@ -4,9 +4,15 @@ packages:
 
 saveExact: true
 engineStrict: true
-# Supply chain: don't resolve versions published less than a day ago; build scripts need explicit approval.
-minimumReleaseAge: 1440
+# Supply chain: resolve only versions published >= 7 days ago (matches the Dependabot cooldown), never let a
+# package downgrade its trust evidence, and require explicit approval for build scripts.
+minimumReleaseAge: 10080
+trustPolicy: no-downgrade
+blockExoticSubdeps: true # transitive deps only from the registry (no git/tarball URLs)
 strictDepBuilds: true
 allowBuilds:
   esbuild: true # postinstall verifies the platform-native binary it runs; widely used, needed by drizzle-kit and vite
   protobufjs: false # postinstall only checks CLI deps; runtime needs no build
+# GHSA-67mh-4wv8-2f99: drizzle-kit pulls esbuild 0.18 via the deprecated @esbuild-kit loader. 0.25 keeps the same transform API.
+overrides:
+  '@esbuild-kit/core-utils>esbuild': 0.25.12

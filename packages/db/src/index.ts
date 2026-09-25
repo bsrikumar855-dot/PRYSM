@@ -14,7 +14,12 @@ export interface PoolOptions {
 }
 
 /** A pg connection pool with PRYSM defaults. */
-export function createPool({ connectionString, applicationName, max = 10, statementTimeoutMs = 15_000 }: PoolOptions): pg.Pool {
+export function createPool({
+  connectionString,
+  applicationName,
+  max = 10,
+  statementTimeoutMs = 15_000,
+}: PoolOptions): pg.Pool {
   return new pg.Pool({
     connectionString,
     application_name: applicationName,

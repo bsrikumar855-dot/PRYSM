@@ -14,6 +14,10 @@
     },
     "./otel": {
       "default": "./dist/otel.js"
+    },
+    "./tracing": {
+      "types": "./dist/tracing.d.ts",
+      "default": "./dist/tracing.js"
     }
   },
   "scripts": {
@@ -26,6 +30,7 @@
   "dependencies": {
     "@opentelemetry/api": "1.9.1",
     "@opentelemetry/auto-instrumentations-node": "0.80.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "0.222.0",
     "@opentelemetry/instrumentation": "0.222.0",
     "@opentelemetry/sdk-node": "0.222.0",
     "fastify": "5.12.5",

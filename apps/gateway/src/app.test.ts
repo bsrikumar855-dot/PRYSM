@@ -8,7 +8,11 @@ if (!url) throw new Error('VALKEY_URL is not set. Run pnpm infra:up and see .env
 
 const logger = createLogger({ service: 'gateway-test', level: 'silent' });
 const valkey = new Redis(url, { enableOfflineQueue: false, maxRetriesPerRequest: 1 });
-const deadValkey = new Redis('redis://127.0.0.1:1', { enableOfflineQueue: false, maxRetriesPerRequest: 0, lazyConnect: true });
+const deadValkey = new Redis('redis://127.0.0.1:1', {
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 0,
+  lazyConnect: true,
+});
 deadValkey.on('error', () => undefined);
 
 beforeAll(async () => {
@@ -23,7 +27,10 @@ afterAll(() => {
 describe('gateway readiness', () => {
   it('is ready when Valkey answers', async () => {
     const { app } = buildGateway({ logger, valkey });
-    expect((await app.inject({ url: '/readyz' })).json()).toEqual({ status: 'ready', checks: [{ name: 'valkey', ok: true }] });
+    expect((await app.inject({ url: '/readyz' })).json()).toEqual({
+      status: 'ready',
+      checks: [{ name: 'valkey', ok: true }],
+    });
   });
 
   it('is not ready when Valkey is unreachable', async () => {

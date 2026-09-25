@@ -18,7 +18,12 @@ describe('logger allowlist', () => {
     logger.child({ tenant_id: 't1' }).warn({ response: CANARY }, 'resp');
     expect(raw()).not.toContain(CANARY);
     const [first, second] = lines();
-    expect(first).toMatchObject({ service: 'test', level: 'info', request_id: 'r1', dropped_fields: ['prompt', 'messages'] });
+    expect(first).toMatchObject({
+      service: 'test',
+      level: 'info',
+      request_id: 'r1',
+      dropped_fields: ['prompt', 'messages'],
+    });
     expect(second).toMatchObject({ level: 'warn', tenant_id: 't1', dropped_fields: ['response'] });
     expect(typeof first?.['time']).toBe('string');
   });

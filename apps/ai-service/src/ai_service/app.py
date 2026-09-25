@@ -3,13 +3,27 @@ import re
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.trace import Span, TracerProvider
 from starlette.routing import Match
 
 log = logging.getLogger("ai_service")
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
+REDACTED = "[REDACTED]"
+
+
+def redact_query(span: Span, scope: dict[str, Any]) -> None:
+    """Server-request hook: query strings may hold tokens or personal data, so they never reach traces."""
+    if not span.is_recording() or not scope.get("query_string"):
+        return
+    path = str(scope.get("path", ""))
+    span.set_attribute("url.query", REDACTED)
+    span.set_attribute("http.target", f"{path}?{REDACTED}")
+    span.set_attribute("http.url", f"{path}?{REDACTED}")
 
 
 def request_id_from(header: str | None) -> str:
@@ -25,9 +39,14 @@ def _route_template(request: Request) -> str:
     return "unmatched"
 
 
-def create_app() -> FastAPI:
-    """Build the service. Parsing, extraction and judge endpoints arrive in M6."""
+def create_app(tracer_provider: TracerProvider | None = None) -> FastAPI:
+    """Build the service. Parsing, extraction and judge endpoints arrive in M6.
+
+    Tracing is wired here (not by auto-instrumentation) so the query-redaction hook is always applied;
+    run with OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=fastapi to avoid duplicate spans.
+    """
     app = FastAPI(title="PRYSM AI service", docs_url=None, redoc_url=None, openapi_url=None)
+    FastAPIInstrumentor.instrument_app(app, server_request_hook=redact_query, tracer_provider=tracer_provider)
 
     @app.middleware("http")
     async def request_logging(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:

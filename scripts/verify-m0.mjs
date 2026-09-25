@@ -1,5 +1,6 @@
 // M0 verification: every service is ready, a request produces a trace in Tempo, and its log line reaches
-// Loki with the request id but never the payload. Run after `pnpm infra:up && pnpm dev` or `pnpm stack:up`.
+// Loki with the request id. A canary in the query string must appear in neither logs nor traces.
+// Run after `pnpm infra:up && pnpm dev` or `pnpm stack:up`.
 import { randomBytes, randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -52,25 +53,41 @@ const res = await fetch(`http://127.0.0.1:4000/readyz?token=${canary}`, {
 });
 res.headers.get('x-request-id') === requestId ? pass('api echoes x-request-id') : fail('api did not echo x-request-id');
 
-const trace = await eventually(async () => {
-  const r = await fetch(`${TEMPO}/api/traces/${traceId}`);
-  if (r.status !== 200) return undefined;
-  const body = await r.text();
-  return body.includes('prysm-api') ? body : undefined;
-}, 60_000, 2_000);
-trace ? pass(`trace ${traceId} from prysm-api is in Tempo`) : fail(`trace ${traceId} not found in Tempo`);
+const trace = await eventually(
+  async () => {
+    const r = await fetch(`${TEMPO}/api/traces/${traceId}`);
+    if (r.status !== 200) return undefined;
+    const body = await r.text();
+    return body.includes('prysm-api') ? body : undefined;
+  },
+  60_000,
+  2_000,
+);
+if (!trace) fail(`trace ${traceId} not found in Tempo`);
+else {
+  pass(`trace ${traceId} from prysm-api is in Tempo`);
+  trace.includes(canary)
+    ? fail('query-string canary leaked into trace attributes')
+    : pass('no payload canary in traces');
+}
 
 const query = encodeURIComponent(`{service_name="prysm-api"} | request_id = "${requestId}"`);
-const logs = await eventually(async () => {
-  const r = await fetch(`${LOKI}/loki/api/v1/query_range?query=${query}&since=10m&limit=50`);
-  const body = await r.json();
-  const lines = (body.data?.result ?? []).flatMap((s) => [JSON.stringify(s.stream), ...s.values.map((v) => v[1])]);
-  return lines.length > 0 ? lines.join('\n') : undefined;
-}, 60_000, 2_000);
+const logs = await eventually(
+  async () => {
+    const r = await fetch(`${LOKI}/loki/api/v1/query_range?query=${query}&since=10m&limit=50`);
+    const body = await r.json();
+    const lines = (body.data?.result ?? []).flatMap((s) => [JSON.stringify(s.stream), ...s.values.map((v) => v[1])]);
+    return lines.length > 0 ? lines.join('\n') : undefined;
+  },
+  60_000,
+  2_000,
+);
 if (!logs) fail(`no log line with request_id ${requestId} in Loki`);
 else {
   pass('request log line with request_id is in Loki');
-  logs.includes(canary) ? fail('payload canary from the query string leaked into logs') : pass('no payload canary in logs');
+  logs.includes(canary)
+    ? fail('payload canary from the query string leaked into logs')
+    : pass('no payload canary in logs');
 }
 
 console.log(failures === 0 ? '\nM0 verification passed' : `\nM0 verification FAILED (${failures})`);

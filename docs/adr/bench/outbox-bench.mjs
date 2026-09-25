@@ -144,7 +144,14 @@ async function main() {
   const results = [
     await scenario(host, port, 'INSERT outbox, synchronous_commit=on, 1 conn', N, 1, 'on'),
     await scenario(host, port, 'INSERT outbox, synchronous_commit=on, 50 conns', N * 5, 50, 'on'),
-    await scenario(host, port, 'INSERT outbox, synchronous_commit=off, 50 conns (reference, not durable)', N * 5, 50, 'off'),
+    await scenario(
+      host,
+      port,
+      'INSERT outbox, synchronous_commit=off, 50 conns (reference, not durable)',
+      N * 5,
+      50,
+      'off',
+    ),
   ];
   console.log(JSON.stringify({ settings, results }, null, 2));
 }

@@ -26,7 +26,12 @@ describe('createServer', () => {
     await app.inject({ url: '/items/secret-value?token=CANARY', headers: { 'x-request-id': 'req-2' } });
     expect(cap.raw()).not.toContain('CANARY');
     expect(cap.raw()).not.toContain('secret-value');
-    expect(cap.lines().at(-1)).toMatchObject({ event: 'http_request', route: '/items/:id', status_code: 200, request_id: 'req-2' });
+    expect(cap.lines().at(-1)).toMatchObject({
+      event: 'http_request',
+      route: '/items/:id',
+      status_code: 200,
+      request_id: 'req-2',
+    });
   });
 
   it('reports readiness per check and fails closed on errors and timeouts', async () => {
@@ -52,7 +57,10 @@ describe('createServer', () => {
   });
 
   it('is ready when all checks pass and not ready once shutting down', async () => {
-    const server = createServer({ logger: captureLogger().logger, readiness: [{ name: 'db', check: () => Promise.resolve() }] });
+    const server = createServer({
+      logger: captureLogger().logger,
+      readiness: [{ name: 'db', check: () => Promise.resolve() }],
+    });
     expect((await server.app.inject({ url: '/readyz' })).statusCode).toBe(200);
     server.markShuttingDown();
     const res = await server.app.inject({ url: '/readyz' });

@@ -16,7 +16,10 @@ export const baseEnv = z.object({
  * Parses `env` against `schema`. Throws with every problem listed, so a misconfigured
  * service refuses to start instead of running half-configured.
  */
-export function loadConfig<S extends z.ZodType>(schema: S, env: Record<string, string | undefined> = process.env): z.output<S> {
+export function loadConfig<S extends z.ZodType>(
+  schema: S,
+  env: Record<string, string | undefined> = process.env,
+): z.output<S> {
   const result = schema.safeParse(env);
   if (!result.success) throw new Error(`Invalid configuration:\n${z.prettifyError(result.error)}`);
   return result.data;

@@ -13,7 +13,11 @@ function required(name: string): string {
 const logger = createLogger({ service: 'workers-test', level: 'silent' });
 const pool = createPool({ connectionString: required('DATABASE_URL_APP'), applicationName: 'prysm-workers-test' });
 const valkey = new Redis(required('VALKEY_URL'), { enableOfflineQueue: false, maxRetriesPerRequest: 1 });
-const deadValkey = new Redis('redis://127.0.0.1:1', { enableOfflineQueue: false, maxRetriesPerRequest: 0, lazyConnect: true });
+const deadValkey = new Redis('redis://127.0.0.1:1', {
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 0,
+  lazyConnect: true,
+});
 deadValkey.on('error', () => undefined);
 
 beforeAll(async () => {
@@ -43,7 +47,12 @@ describe('workers readiness', () => {
     const { app } = buildWorkers({ logger, pool, valkey: deadValkey });
     const res = await app.inject({ url: '/readyz' });
     expect(res.statusCode).toBe(503);
-    expect(res.json()).toMatchObject({ checks: [{ name: 'postgres', ok: true }, { name: 'valkey', ok: false }] });
+    expect(res.json()).toMatchObject({
+      checks: [
+        { name: 'postgres', ok: true },
+        { name: 'valkey', ok: false },
+      ],
+    });
   });
 });
 
