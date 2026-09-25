@@ -13,6 +13,7 @@ strictDepBuilds: true
 allowBuilds:
   esbuild: true # postinstall verifies the platform-native binary it runs; widely used, needed by drizzle-kit and vite
   protobufjs: false # postinstall only checks CLI deps; runtime needs no build
-# GHSA-67mh-4wv8-2f99: drizzle-kit pulls esbuild 0.18 via the deprecated @esbuild-kit loader. 0.25 keeps the same transform API.
+# One esbuild for the whole tree. drizzle-kit pulled 0.18 (GHSA-67mh-4wv8-2f99) and 0.25, whose native binary is
+# built with Go 1.23 (stdlib CVEs flagged by Trivy). 0.28 keeps the transform API that drizzle-kit, vite and tsx use.
 overrides:
-  '@esbuild-kit/core-utils>esbuild': 0.25.12
+  esbuild: 0.28.2

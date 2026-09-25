@@ -1,6 +1,6 @@
 import { tracing } from '@opentelemetry/sdk-node';
 import { describe, expect, it } from 'vitest';
-import { REDACTED, RedactingSpanProcessor, stripQuery } from './tracing.ts';
+import { REDACTED, RedactingSpanProcessor, stripQuery, traceSpanProcessors } from './tracing.ts';
 
 const CANARY = 'CANARY-token-abc123';
 
@@ -46,5 +46,14 @@ describe('RedactingSpanProcessor', () => {
     const span = tracerWith(exporter).startSpan('GET', { attributes: { 'url.full': 'http://api:4000/healthz' } });
     span.end();
     expect(exporter.getFinishedSpans()[0]?.attributes['url.full']).toBe('http://api:4000/healthz');
+  });
+});
+
+describe('traceSpanProcessors', () => {
+  it('puts redaction before export, so exporters only ever see scrubbed spans', async () => {
+    const processors = traceSpanProcessors(new tracing.InMemorySpanExporter());
+    expect(processors.map((p) => p.constructor.name)).toEqual(['RedactingSpanProcessor', 'BatchSpanProcessor']);
+    await Promise.all(processors.map((p) => p.forceFlush()));
+    await Promise.all(processors.map((p) => p.shutdown()));
   });
 });
