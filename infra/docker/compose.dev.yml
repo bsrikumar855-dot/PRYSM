@@ -1,0 +1,72 @@
+# Local development stack. Dev-only credentials; every port binds to 127.0.0.1.
+#   pnpm infra:up     -> infrastructure only (run services with `pnpm dev`)
+#   pnpm stack:up     -> infrastructure + all services in containers (profile "app")
+name: prysm-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres-dev-only
+    ports: ['127.0.0.1:5432:5432']
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d prysm']
+      interval: 2s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:9.1.2@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd
+    command: ['valkey-server', '--appendonly', 'yes', '--appendfsync', 'everysec', '--maxmemory-policy', 'noeviction']
+    ports: ['127.0.0.1:6379:6379']
+    volumes: ['valkey-data:/data']
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 2s
+      retries: 30
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.47@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882
+    command: ['server', '-dir=/data', '-s3', '-s3.port=8333', '-s3.config=/etc/seaweedfs/s3.json']
+    ports: ['127.0.0.1:8333:8333']
+    volumes:
+      - seaweedfs-data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:8333/healthz']
+      interval: 2s
+      retries: 60
+
+  # One-shot: creates the evidence bucket with Object Lock (ADR-0011) using the admin identity.
+  seaweedfs-init:
+    image: amazon/aws-cli:2.37.1@sha256:b0dd5a4d216a1786863541a201baa7b7b4c5032bec9c6e72c38d01cafd7e8db8
+    depends_on:
+      seaweedfs: { condition: service_healthy }
+    environment:
+      AWS_ACCESS_KEY_ID: prysm-admin
+      AWS_SECRET_ACCESS_KEY: prysm-admin-dev-only
+      AWS_REGION: us-east-1
+    entrypoint: ['bash', '-c']
+    command:
+      - >-
+        aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket prysm-evidence-dev 2>/dev/null ||
+        aws --endpoint-url http://seaweedfs:8333 s3api create-bucket --bucket prysm-evidence-dev --object-lock-enabled-for-bucket
+    restart: 'no'
+
+  otel-lgtm:
+    image: grafana/otel-lgtm:0.33.1
+    ports:
+      - '127.0.0.1:3000:3000' # Grafana
+      - '127.0.0.1:3200:3200' # Tempo query API (used by scripts/verify-m0.mjs)
+      - '127.0.0.1:4317:4317' # OTLP gRPC
+      - '127.0.0.1:4318:4318' # OTLP HTTP
+    volumes: ['lgtm-data:/data']
+
+volumes:
+  pg-data: {}
+  valkey-data: {}
+  seaweedfs-data: {}
+  lgtm-data: {}

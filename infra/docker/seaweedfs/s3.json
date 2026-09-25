@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "prysm-admin",
+      "credentials": [{ "accessKey": "prysm-admin", "secretKey": "prysm-admin-dev-only" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    },
+    {
+      "name": "prysm-dev",
+      "credentials": [{ "accessKey": "prysm-dev", "secretKey": "prysm-dev-only-secret" }],
+      "actions": ["Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
