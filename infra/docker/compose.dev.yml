@@ -60,10 +60,106 @@ services:
     image: grafana/otel-lgtm:0.33.1@sha256:d6c52678ab5b7144f27ae569fd778608121c0f4a10eb411983750a0d67c1fbe3
     ports:
       - '127.0.0.1:3000:3000' # Grafana
+      - '127.0.0.1:3100:3100' # Loki query API (used by scripts/verify-m0.mjs)
       - '127.0.0.1:3200:3200' # Tempo query API (used by scripts/verify-m0.mjs)
       - '127.0.0.1:4317:4317' # OTLP gRPC
       - '127.0.0.1:4318:4318' # OTLP HTTP
     volumes: ['lgtm-data:/data']
+
+  # ---- profile "app": every service in a container (pnpm stack:up) ----
+  db-migrate:
+    profiles: [app]
+    build: { context: ../.., dockerfile: infra/docker/node.Dockerfile, target: migrate }
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      DATABASE_URL_OWNER: postgres://prysm_owner:prysm-owner-dev-only@postgres:5432/prysm
+    restart: 'no'
+
+  api:
+    profiles: [app]
+    build: { context: ../.., dockerfile: infra/docker/node.Dockerfile, target: service, args: { APP: api } }
+    depends_on: &needs-db
+      db-migrate: { condition: service_completed_successfully }
+      valkey: { condition: service_healthy }
+    environment:
+      <<: &node-env
+        DATABASE_URL_APP: postgres://prysm_app:prysm-app-dev-only@postgres:5432/prysm
+        VALKEY_URL: redis://valkey:6379
+        OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+        OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+        OTEL_TRACES_EXPORTER: otlp
+        OTEL_METRICS_EXPORTER: otlp
+        OTEL_LOGS_EXPORTER: otlp
+      SERVICE_NAME: api
+      OTEL_SERVICE_NAME: prysm-api
+      PORT: '4000'
+    ports: ['127.0.0.1:4000:4000']
+    healthcheck: &node-health
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:$${PORT}/readyz']
+      interval: 3s
+      retries: 40
+
+  gateway:
+    profiles: [app]
+    build: { context: ../.., dockerfile: infra/docker/node.Dockerfile, target: service, args: { APP: gateway } }
+    depends_on:
+      valkey: { condition: service_healthy }
+    environment:
+      <<: *node-env
+      SERVICE_NAME: gateway
+      OTEL_SERVICE_NAME: prysm-gateway
+      PORT: '4100'
+    ports: ['127.0.0.1:4100:4100']
+    healthcheck: *node-health
+
+  workers:
+    profiles: [app]
+    build: { context: ../.., dockerfile: infra/docker/node.Dockerfile, target: service, args: { APP: workers } }
+    depends_on:
+      <<: *needs-db
+      seaweedfs-init: { condition: service_completed_successfully } # evidence bucket (ADR-0011)
+    environment:
+      <<: *node-env
+      SERVICE_NAME: workers
+      OTEL_SERVICE_NAME: prysm-workers
+      PORT: '4200'
+    ports: ['127.0.0.1:4200:4200']
+    healthcheck: *node-health
+
+  web:
+    profiles: [app]
+    build: { context: ../.., dockerfile: infra/docker/node.Dockerfile, target: web }
+    depends_on:
+      api: { condition: service_healthy }
+    environment:
+      <<: *node-env
+      API_URL: http://api:4000
+      OTEL_SERVICE_NAME: prysm-web
+    ports: ['127.0.0.1:3001:3001']
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:3001/readyz']
+      interval: 3s
+      retries: 40
+
+  ai-service:
+    profiles: [app]
+    build: { context: ../.., dockerfile: infra/docker/python.Dockerfile }
+    environment:
+      SERVICE_NAME: ai-service
+      OTEL_SERVICE_NAME: prysm-ai-service
+      PORT: '8000'
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: 'true'
+    ports: ['127.0.0.1:8000:8000']
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=2)"]
+      interval: 3s
+      retries: 40
 
 volumes:
   pg-data: {}

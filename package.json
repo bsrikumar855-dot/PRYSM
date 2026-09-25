@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:repo": "node scripts/check-wording.mjs && node scripts/check-todos.mjs",
-    "infra:up": "docker compose -f infra/docker/compose.dev.yml up -d --wait",
+    "infra:up": "docker compose -f infra/docker/compose.dev.yml up -d --wait postgres valkey seaweedfs otel-lgtm && docker compose -f infra/docker/compose.dev.yml run --rm seaweedfs-init",
     "infra:down": "docker compose -f infra/docker/compose.dev.yml down",
     "stack:up": "docker compose -f infra/docker/compose.dev.yml --profile app up -d --build --wait",
     "stack:down": "docker compose -f infra/docker/compose.dev.yml --profile app down",

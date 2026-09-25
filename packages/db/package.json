@@ -4,6 +4,11 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
+  "files": [
+    "dist",
+    "migrations",
+    "drizzle.config.ts"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

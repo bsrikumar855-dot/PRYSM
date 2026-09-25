@@ -1,0 +1,15 @@
+name: setup
+description: Node (from .nvmrc), pnpm (from packageManager), uv, and frozen installs for both ecosystems.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with: { node-version-file: .nvmrc }
+    - shell: bash
+      run: corepack enable
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with: { version: '0.12.18' }
+    - shell: bash
+      run: pnpm install --frozen-lockfile
+    - shell: bash
+      run: uv sync --frozen --all-packages

@@ -4,9 +4,17 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./otel": { "default": "./dist/otel.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./otel": {
+      "default": "./dist/otel.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

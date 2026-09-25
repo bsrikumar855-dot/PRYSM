@@ -1,0 +1,48 @@
+# Owner decision 2026-09-24 (TRACKING F-41): weekly, grouped minor/patch per ecosystem with a cooldown.
+# Security updates are separate: groups apply to version updates only, so security PRs open immediately and ungrouped.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: uv
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      uv-minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directories: [/, /.github/actions/*]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories: [/infra/docker]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      docker-minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker-compose
+    directories: [/infra/docker]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      compose-minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
