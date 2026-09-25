@@ -1,0 +1,21 @@
+{
+  "name": "@prysm/workers",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=../../.env --env-file=service.env --import @prysm/platform/otel src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --import @prysm/platform/otel dist/main.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prysm/db": "workspace:*",
+    "@prysm/platform": "workspace:*",
+    "ioredis": "6.0.0",
+    "zod": "4.6.5"
+  }
+}

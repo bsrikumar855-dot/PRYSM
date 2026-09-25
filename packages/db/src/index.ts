@@ -1,5 +1,7 @@
 import pg from 'pg';
 
+export type { Pool, PoolClient } from 'pg';
+
 export { findRlsGaps, type RlsGap } from './rls-coverage.ts';
 
 export interface PoolOptions {
