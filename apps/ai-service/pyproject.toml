@@ -5,7 +5,7 @@ description = "PRYSM document parsing, extraction and LLM-judge service (no data
 license = "Apache-2.0"
 requires-python = "==3.12.*"
 dependencies = [
-  "fastapi==0.141.1",
+  "fastapi==0.142.2",
   "uvicorn==0.53.0",
   "pydantic==2.13.5",
   "pydantic-settings==2.15.0",
