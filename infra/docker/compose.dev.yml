@@ -5,7 +5,7 @@ name: prysm-dev
 
 services:
   postgres:
-    image: pgvector/pgvector:0.8.6-pg16@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
+    image: pgvector/pgvector:0.8.7-pg16@sha256:7b822b0aac60967beb1ea5e576b8602c94c300a157d187f385ae3e0da199b90a
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres-dev-only
@@ -29,7 +29,7 @@ services:
       retries: 30
 
   seaweedfs:
-    image: chrislusf/seaweedfs:4.47@sha256:ce9e796f1fe6f06968f4c04bdaf8f678dad9c8acdfef3d244133d71bfa6bf882
+    image: chrislusf/seaweedfs:4.48@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d
     command: ['server', '-dir=/data', '-s3', '-s3.port=8333', '-s3.config=/etc/seaweedfs/s3.json']
     ports: ['127.0.0.1:8333:8333']
     volumes:
@@ -42,7 +42,7 @@ services:
 
   # One-shot: creates the evidence bucket with Object Lock (ADR-0011) using the admin identity.
   seaweedfs-init:
-    image: amazon/aws-cli:2.37.3@sha256:83f8ffe939569070c5b66d22231862ab78718766d9d8e4c44ca84dd0be5569a5
+    image: amazon/aws-cli:2.37.8@sha256:420ab345e847291b541b45d989535f55bcff957c27fa1100fae4aa233e86398c
     depends_on:
       seaweedfs: { condition: service_healthy }
     environment:
@@ -57,7 +57,7 @@ services:
     restart: 'no'
 
   otel-lgtm:
-    image: grafana/otel-lgtm:0.33.1@sha256:d6c52678ab5b7144f27ae569fd778608121c0f4a10eb411983750a0d67c1fbe3
+    image: grafana/otel-lgtm:0.34.0@sha256:b966ea107831d526d9eb8fe4d2d86c9e5731392fad9dce8296bcf2072031f07c
     ports:
       - '127.0.0.1:3000:3000' # Grafana
       - '127.0.0.1:3100:3100' # Loki query API (used by scripts/verify-m0.mjs)
