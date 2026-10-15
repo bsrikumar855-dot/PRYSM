@@ -108,6 +108,7 @@ describe('nothing a service runs can reach prysm_test_admin', () => {
       /^infra\/docker\/postgres\/init\/10-test-harness\.sql$/,
       /^packages\/db\/src\/(test-admin\.test\.ts|testing\/)/,
       /^\.github\/workflows\/ci\.yml$/,
+      /^turbo\.json$/, // passThroughEnv must list the variable or turbo hides it from the harness
       /^\.env\.example$/,
       /^docs\//,
       /^CLAUDE\.md$/,
