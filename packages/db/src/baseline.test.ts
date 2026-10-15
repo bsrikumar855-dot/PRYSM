@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createPool, findRlsGaps, ping, type Pool } from './index.ts';
+import { createPool, ping } from './pool.ts';
+import { findRlsGaps } from './rls-coverage.ts';
 import { createTestDatabase, type TestDatabase } from './testing/index.ts';
 
 const RUNTIME_ROLES = ['prysm_app', 'prysm_platform', 'prysm_gateway_outbox'];
@@ -8,7 +9,7 @@ const RUNTIME_ROLES = ['prysm_app', 'prysm_platform', 'prysm_gateway_outbox'];
 // Runs against a private clone of the migrated template, so the checks below hold for what `db:migrate`
 // produces and no other suite can see these tables.
 let db: TestDatabase;
-let owner: Pool;
+let owner: pg.Pool;
 
 beforeAll(async () => {
   db = await createTestDatabase({ suite: 'baseline' });
