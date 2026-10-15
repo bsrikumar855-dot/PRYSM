@@ -34,21 +34,21 @@ PRYSM reports **control status** and **evidence of** controls operating. It does
 
 ## Status
 
-| Milestone | Scope                                            | Status                                                                                             |
-| --------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| M0        | Foundations: monorepo, services, local stack, CI | Merged to `main`. CI fix in review ([#16](https://github.com/bsrikumar855-dot/PRYSM/pull/16)).     |
-| M1        | Identity and tenancy                             | Plan drafted: [docs/plans/M1-identity-tenancy.md](docs/plans/M1-identity-tenancy.md). Not started. |
-| M2        | Evidence Vault                                   | Not started                                                                                        |
-| M3        | Policy engine and detectors                      | Not started                                                                                        |
-| M4        | AI Gateway                                       | Not started                                                                                        |
-| M5        | Assets, findings and remediation                 | Not started                                                                                        |
-| M6        | Rule Intelligence                                | Not started                                                                                        |
-| M7        | Framework and sector content                     | Not started                                                                                        |
-| M8 / M8b  | Collectors                                       | Not started                                                                                        |
-| M9        | Console, reporting, auditor portal               | Not started                                                                                        |
-| M10       | SDKs and integrations                            | Not started                                                                                        |
-| M11       | Self-hosted and hardening                        | Not started                                                                                        |
-| M12       | Launch readiness                                 | Not started                                                                                        |
+| Milestone | Scope                                            | Status                                                                                                                                   |
+| --------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| M0        | Foundations: monorepo, services, local stack, CI | Merged to `main`. All 7 CI jobs green on `main` ([run 38678172559](https://github.com/bsrikumar855-dot/PRYSM/actions/runs/38678172559)). |
+| M1        | Identity and tenancy                             | Plan in review. Not started.                                                                                                             |
+| M2        | Evidence Vault                                   | Not started                                                                                                                              |
+| M3        | Policy engine and detectors                      | Not started                                                                                                                              |
+| M4        | AI Gateway                                       | Not started                                                                                                                              |
+| M5        | Assets, findings and remediation                 | Not started                                                                                                                              |
+| M6        | Rule Intelligence                                | Not started                                                                                                                              |
+| M7        | Framework and sector content                     | Not started                                                                                                                              |
+| M8 / M8b  | Collectors                                       | Not started                                                                                                                              |
+| M9        | Console, reporting, auditor portal               | Not started                                                                                                                              |
+| M10       | SDKs and integrations                            | Not started                                                                                                                              |
+| M11       | Self-hosted and hardening                        | Not started                                                                                                                              |
+| M12       | Launch readiness                                 | Not started                                                                                                                              |
 
 Requirement-level status lives in [docs/TRACKING.md](docs/TRACKING.md).
 
