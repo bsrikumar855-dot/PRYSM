@@ -188,6 +188,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | R-06 | Document versioning: detect affected obligations/controls, open review items                          | M6  | [ ]    |
 | R-07 | Eval harness + golden dataset (extraction P/R, mapping accuracy) with CI thresholds                   | M6  | [ ]    |
 | R-08 | Tenant controls for PRYSM's LLM use (provider choice, no-external-LLM mode)                           | M6  | [ ]    |
+| R-09 | Post-LLM verifier: exact-text citation re-check + verified/contextual label (Ignition pattern, §2.13) | M6  | [ ]    |
 
 ### 2.8 Control Library & Content (§3, §6.2)
 
@@ -251,6 +252,7 @@ Ignition (MIT, github.com/suchitchopade3110-arch/Ignition) is a read-only refere
 
 - **K-08** (webhook secret rotation): pattern from Ignition's webhook-secret-rotation tests and `docs/SECRET_ROTATION.md`. Accept the new or the previous secret for a bounded window, then drop the old one. Complements THREAT_MODEL §3.3.
 - **D-08** (golden-fixture eval): pattern from Ignition's golden eval script and scoring tests. Hand-labelled fixtures, precision, recall and F1 per fixture and overall, a minimum-F1 gate. A part that needs a live model runs as a non-blocking CI job; the deterministic detector corpus can block (D-05). Related to D-05 and R-07, not a duplicate.
+- **R-09** (post-LLM verifier): pattern from Ignition's post-LLM verification step. After an LLM proposes a finding or mapping, code re-checks the cited span by exact-text match, and the finding is labelled `verified` or `contextual`. Consistent with P-06: at or above threshold it is still `pending_confirmation` only and never passes or closes a control. The label informs the human reviewer and does not replace them. Extends R-04.
 
 ## 3. Scope changes log
 
