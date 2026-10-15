@@ -94,9 +94,9 @@ const dbAccessInWithTenant = {
     messages: { outside: WITH_TENANT_MESSAGE },
   },
   create(context) {
-    /** Function node -> names of its parameters, for callbacks passed to withTenant. */
+    /** Function node -> names of its parameters, for callbacks passed to withTenant or withGlobal. */
     const tenantCallbacks = new Map();
-    /** Parameter-name sets of the withTenant callbacks we are currently inside. */
+    /** Parameter-name sets of the withTenant / withGlobal (ADR-0013) callbacks we are currently inside. */
     const active = [];
     const enter = (node) => {
       const params = tenantCallbacks.get(node);
@@ -114,7 +114,7 @@ const dbAccessInWithTenant = {
             : callee.type === 'MemberExpression' && !callee.computed && callee.property.type === 'Identifier'
               ? callee.property.name
               : undefined;
-        if (name === 'withTenant') {
+        if (name === 'withTenant' || name === 'withGlobal') {
           const callback = node.arguments.findLast(isFunction);
           if (callback) {
             tenantCallbacks.set(
