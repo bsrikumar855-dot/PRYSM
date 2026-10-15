@@ -21,6 +21,7 @@
     "stack:up": "docker compose -f infra/docker/compose.dev.yml --profile app up -d --build --wait",
     "stack:down": "docker compose -f infra/docker/compose.dev.yml --profile app down",
     "db:migrate": "pnpm --filter @prysm/db migrate",
+    "db:template": "pnpm --filter @prysm/db template",
     "verify:m0": "node scripts/verify-m0.mjs",
     "test:scripts": "node --test \"scripts/**/*.test.mjs\""
   },

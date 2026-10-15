@@ -21,6 +21,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "migrate": "drizzle-kit migrate",
+    "template": "node --env-file-if-exists=../../.env src/testing/build-template.ts",
     "generate": "drizzle-kit generate",
     "check:schema": "drizzle-kit check"
   },
