@@ -38,7 +38,7 @@ PRYSM is a continuous AI compliance operating system: it turns AI rules (laws, s
 
 ```
 apps/        web (Next.js) · api (Fastify) · gateway (Fastify+undici) · workers (BullMQ) · ai-service (Python/FastAPI) · verifier-cli (Go)
-packages/    core-types · policy-engine (pure) · detectors · db (Drizzle + SQL/RLS) · evidence · sdk-js · ui
+packages/    core-types (incl. authz) · crypto · policy-engine (pure) · detectors · db (Drizzle + SQL/RLS) · evidence · sdk-js · ui
 sdks/python  customer SDK
 content/     frameworks/ and sector-packs/ — data, not code
 infra/       docker/ · helm/ · terraform/
