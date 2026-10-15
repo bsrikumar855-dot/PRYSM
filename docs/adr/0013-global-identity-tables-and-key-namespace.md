@@ -29,6 +29,7 @@ The allowlist is explicit in code and checked from both directions:
 - **G6, `withGlobal` surface.** A type-level and runtime test: `withGlobal` repositories do not expose any tenant table, and a lint fixture shows `withTenant`-only tables cannot be imported into `packages/db/src/global/`.
 - **G7, key lookup.** Presenting tenant A's `key_id` with tenant B in the tenant part finds no row; a correct tenant with a wrong secret fails the compare; both return the same response and similar timing.
 - **G8, `g:` namespace.** A key-construction lint test rejects any prefix other than `t:{tenant_id}:` and `g:`.
+- **G9, signup cannot target an existing tenant.** The server generates the tenant id with a CSPRNG and inserts the `tenants` row first; a test that forces an existing id makes the transaction abort at that insert and leaves no `memberships` row in the other tenant.
 
 The existing ADR-0007 tests (coverage over `tenant_id` tables, generic isolation, API cross-tenant 404s) are unchanged and still apply to every tenant table.
 
