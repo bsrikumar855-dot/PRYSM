@@ -1,4 +1,4 @@
-import { createPool } from '@prysm/db';
+import { createDb } from '@prysm/db';
 import { createLogger } from '@prysm/platform';
 import { Redis } from 'ioredis';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -11,7 +11,7 @@ function required(name: string): string {
 }
 
 const logger = createLogger({ service: 'api-test', level: 'silent' });
-const pool = createPool({ connectionString: required('DATABASE_URL_APP'), applicationName: 'prysm-api-test' });
+const db = createDb({ connectionString: required('DATABASE_URL_APP'), applicationName: 'prysm-api-test' });
 const valkey = new Redis(required('VALKEY_URL'), { enableOfflineQueue: false, maxRetriesPerRequest: 1 });
 const deadValkey = new Redis('redis://127.0.0.1:1', {
   enableOfflineQueue: false,
@@ -25,14 +25,14 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await pool.end();
+  await db.end();
   valkey.disconnect();
   deadValkey.disconnect();
 });
 
 describe('api readiness', () => {
   it('is ready against real Postgres (as prysm_app) and Valkey', async () => {
-    const { app } = buildApi({ logger, pool, valkey });
+    const { app } = buildApi({ logger, db, valkey });
     const res = await app.inject({ url: '/readyz' });
     expect(res.json()).toEqual({
       status: 'ready',
@@ -44,7 +44,7 @@ describe('api readiness', () => {
   });
 
   it('is not ready when Valkey is unreachable', async () => {
-    const { app } = buildApi({ logger, pool, valkey: deadValkey });
+    const { app } = buildApi({ logger, db, valkey: deadValkey });
     const res = await app.inject({ url: '/readyz' });
     expect(res.statusCode).toBe(503);
     expect(res.json()).toMatchObject({

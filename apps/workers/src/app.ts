@@ -1,4 +1,4 @@
-import { ping, type Pool } from '@prysm/db';
+import type { Db } from '@prysm/db';
 import { baseEnv, createServer, type Logger, type Server } from '@prysm/platform';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
@@ -11,16 +11,16 @@ export const workersEnv = baseEnv.extend({
 
 export interface WorkersDeps {
   logger: Logger;
-  pool: Pool;
+  db: Db;
   valkey: Redis;
 }
 
 /** Builds the workers health server. Ready only when Postgres and Valkey both answer. */
-export function buildWorkers({ logger, pool, valkey }: WorkersDeps): Server {
+export function buildWorkers({ logger, db, valkey }: WorkersDeps): Server {
   return createServer({
     logger,
     readiness: [
-      { name: 'postgres', check: () => ping(pool) },
+      { name: 'postgres', check: () => db.ping() },
       { name: 'valkey', check: () => valkey.ping() },
     ],
   });

@@ -13,6 +13,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
     }
   },
   "scripts": {
@@ -21,6 +25,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "migrate": "drizzle-kit migrate",
+    "template": "node --env-file-if-exists=../../.env src/testing/build-template.ts",
     "generate": "drizzle-kit generate",
     "check:schema": "drizzle-kit check"
   },

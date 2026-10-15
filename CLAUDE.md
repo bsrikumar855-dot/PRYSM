@@ -52,6 +52,7 @@ corepack enable && pnpm install     # Node 24 LTS, pnpm 12 (hash-pinned). uv syn
 cp .env.example .env                # dev-only connection strings for the local stack
 pnpm infra:up                       # postgres+pgvector, valkey, seaweedfs (+ Object Lock bucket), otel-lgtm
 pnpm db:migrate                     # migrations as prysm_owner
+pnpm db:template                    # migrate prysm_template, the clone source for integration-test databases
 pnpm dev                            # all services with hot reload (TS runs from source on Node 24)
 pnpm verify:m0                      # readiness, trace in Tempo, logs in Loki, no payload leak
 pnpm check                          # format, wording + TODO checks, lint, typecheck, tests (needs infra:up)

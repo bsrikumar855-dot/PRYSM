@@ -1,4 +1,4 @@
-import { ping, type Pool } from '@prysm/db';
+import type { Db } from '@prysm/db';
 import { baseEnv, createServer, type Logger, type Server } from '@prysm/platform';
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
@@ -11,16 +11,16 @@ export const apiEnv = baseEnv.extend({
 
 export interface ApiDeps {
   logger: Logger;
-  pool: Pool;
+  db: Db;
   valkey: Redis;
 }
 
 /** Builds the API server. Ready only when Postgres and Valkey both answer. Routes arrive in M1. */
-export function buildApi({ logger, pool, valkey }: ApiDeps): Server {
+export function buildApi({ logger, db, valkey }: ApiDeps): Server {
   return createServer({
     logger,
     readiness: [
-      { name: 'postgres', check: () => ping(pool) },
+      { name: 'postgres', check: () => db.ping() },
       { name: 'valkey', check: () => valkey.ping() },
     ],
   });

@@ -59,8 +59,14 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Provision dev roles (CI mirror of the compose init script)
         run: docker exec -i ${{ job.services.postgres.id }} psql -v ON_ERROR_STOP=1 -U postgres < infra/docker/postgres/init/00-dev-roles.sql
+      - name: Provision the test-harness role and template database (dev/CI only)
+        run: docker exec -i ${{ job.services.postgres.id }} psql -v ON_ERROR_STOP=1 -U postgres < infra/docker/postgres/init/10-test-harness.sql
       - run: pnpm db:migrate
+      - name: Migrate the template database that test databases are cloned from
+        run: pnpm db:template
       - run: pnpm turbo run test
+        env:
+          DATABASE_URL_TEST_ADMIN: postgres://prysm_test_admin:prysm-test-admin-dev-only@127.0.0.1:5432/postgres
 
   migrations:
     runs-on: ubuntu-24.04

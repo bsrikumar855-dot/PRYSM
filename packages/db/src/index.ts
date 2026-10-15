@@ -1,35 +1,3 @@
-import pg from 'pg';
-
-export type { Pool, PoolClient } from 'pg';
-
-export { findRlsGaps, type RlsGap } from './rls-coverage.ts';
-
-export interface PoolOptions {
-  connectionString: string;
-  /** Shows up in pg_stat_activity, e.g. "prysm-api". */
-  applicationName: string;
-  max?: number;
-  /** Server-side cap per statement, so a runaway query can't hold a connection forever. */
-  statementTimeoutMs?: number;
-}
-
-/** A pg connection pool with PRYSM defaults. */
-export function createPool({
-  connectionString,
-  applicationName,
-  max = 10,
-  statementTimeoutMs = 15_000,
-}: PoolOptions): pg.Pool {
-  return new pg.Pool({
-    connectionString,
-    application_name: applicationName,
-    max,
-    statement_timeout: statementTimeoutMs,
-    connectionTimeoutMillis: 5_000,
-  });
-}
-
-/** Readiness probe: one round trip. */
-export async function ping(pool: pg.Pool): Promise<void> {
-  await pool.query('SELECT 1');
-}
+// The public surface of @prysm/db. There is deliberately no raw pool or client here (ADR-0003, ADR-0007):
+// services receive a `Db` and reach tenant data only through `withTenant`.
+export { createDb, type Db, type DbOptions, type TenantQueryResult, type TenantTx } from './db.ts';

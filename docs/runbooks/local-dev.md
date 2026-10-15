@@ -15,11 +15,26 @@ pnpm install && uv sync --all-packages
 cp .env.example .env
 pnpm infra:up        # waits until healthy, then creates the Object Lock evidence bucket
 pnpm db:migrate
+pnpm db:template     # test databases are cloned from this migrated template
 pnpm dev             # api, gateway, workers, web, ai-service with hot reload
 pnpm verify:m0       # in a second terminal
 ```
 
 The one-command alternative is `pnpm stack:up`, which builds and runs every service in containers. `pnpm stack:down` stops it; add `-v` to the underlying compose command to wipe the volumes.
+
+## Integration-test databases (dev and CI only)
+
+Suites that need Postgres call `createTestDatabase` from `@prysm/db/testing`. Each gets its own database, cloned from `prysm_template`, and drops it afterwards. There is no Testcontainers and nothing starts or stops containers.
+
+- **One-time setup on an existing volume:** a fresh volume applies `infra/docker/postgres/init/10-test-harness.sql` by itself. On a volume created before it existed, run it once, then build the template:
+  ```bash
+  docker exec -i <postgres container> psql -v ON_ERROR_STOP=1 -U postgres < infra/docker/postgres/init/10-test-harness.sql
+  pnpm db:template
+  ```
+- **Run `pnpm db:template` again whenever a migration changes**, or clones will lack it.
+- **`DATABASE_URL_TEST_ADMIN`** (in `.env.example`) belongs to `prysm_test_admin`, a role that can create and drop databases and nothing else. It exists only in dev and CI. Never create it in a self-hosted or production database; a test fails the build if a service config, migration or app source mentions it.
+- A crashed run can leave `prysm_t_*` databases behind; the next run drops those older than an hour.
+- **Before any `docker compose down -v`,** list what it would remove (`docker volume ls`) and confirm every volume starts with `prysm-dev_`. Never run `docker volume prune`: other projects' volumes live in the same Docker.
 
 ## Where things are
 
