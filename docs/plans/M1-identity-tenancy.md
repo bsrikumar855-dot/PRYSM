@@ -1,6 +1,6 @@
 # M1 plan: Identity and tenancy
 
-Status: **Proposed, owner answers recorded 2026-10-15; awaiting approval of the dependency list (Q4) and ADR-0012 (Q7).** No M1 code has been written. CLAUDE.md requires an approved plan before each milestone starts.
+Status: **Proposed. Owner answers recorded 2026-10-15 and 2026-10-15 (round 2). ADR-0012 and ADR-0013 are Proposed, not Accepted.** No M1 code has been written, and none starts until ADR-0012 is Accepted. CLAUDE.md requires an approved plan before each milestone starts.
 
 Prerequisite (met): M0 is merged and all 7 CI jobs are green on `main` ([run 38678172559](https://github.com/bsrikumar855-dot/PRYSM/actions/runs/38678172559), after [PR #16](https://github.com/bsrikumar855-dot/PRYSM/pull/16)). **No M1 code starts until ADR-0012 is Accepted.**
 
@@ -136,11 +136,14 @@ The adr README already reserves an M1 ADR for "identity provider build-vs-embed"
 - CSRF: `SameSite=Lax`, an `Origin`/`Sec-Fetch-Site` check on mutations, and a double-submit token (THREAT_MODEL 3.2).
 - Alternative considered: sessions in Valkey. Rejected for M1 because Valkey runs with `appendfsync everysec` (up to about 1 s of loss), and session revocation is something we want to audit. Postgres costs one indexed lookup per request, which is fine for the console and fits M1's load.
 
+- Session management features required by ASVS 5.0.0 (V7.4.x, V7.5.x): users can list and end their own sessions; admins can end any session in their tenant; disabling an account ends all its sessions; after a credential change the user is offered to end the other sessions; changing the email address or MFA settings needs fresh authentication.
+
 The web app and API share one browser origin so the `__Host-` cookie works: Next.js proxies `/api/v1/*` to the api service (a rewrite). The web app still talks only to the api, as ARCHITECTURE requires.
 
 ### 4.4 MFA
 
-- **TOTP** (RFC 6238; SHA-1, 6 digits, 30 s, ±1 step window), 160-bit secret, replay protection through `last_used_step`, 10 single-use recovery codes stored as SHA-256 (they are high-entropy random, so a slow hash adds nothing). Secrets are field-encrypted.
+- **TOTP** (RFC 6238; SHA-1, 6 digits, 30 s step, **current step only**: ASVS 5.0.0 V6.5.5 caps TOTP lifetime at 30 s, so no ±1 window), 160-bit secret, replay protection through `last_used_step`. 10 single-use recovery codes of 128 bits (V6.5.2 and V11.5.1), stored as SHA-256 (at least 112 bits, so a plain hash is allowed). Secrets are field-encrypted.
+- **Password reset never bypasses MFA** (V6.4.3). A lost second factor is recovered by a recovery code or an audited Owner reset only (V6.4.4).
 - **WebAuthn** (named in I-02) and OIDC (I-03) are deferred to follow-ups after the gate (Q1, owner 2026-10-15); TRACKING keeps them at M1 until the scope-change log is updated in PR 1.
 - Alternatives considered: SMS or email codes (rejected: phishable and need a delivery service), TOTP only forever (rejected in the long term, since I-02 lists WebAuthn).
 
@@ -235,7 +238,10 @@ One harness for local and CI (owner, 2026-10-15). No Testcontainers.
 
 - Suites run against the stack that already exists: the compose services locally (`pnpm infra:up`) and the same services in the CI job. Nothing starts or stops containers.
 - **Postgres:** a one-time migrated **template database** (`prysm_template`, created by `pnpm db:migrate` against it). Each suite creates its own database with `CREATE DATABASE prysm_t_<suite>_<random> TEMPLATE prysm_template`, connects as `prysm_app` and `prysm_owner` to it, and drops it afterwards (a global-setup sweep drops leftovers older than an hour). This gives full isolation, including for the cross-tenant suite, and `FORCE ROW LEVEL SECURITY` runs against a real schema.
-- **Needs a role with `CREATEDB`:** the dev roles in `infra/docker/postgres/init/00-dev-roles.sql` have `NOCREATEDB`. PR 2 adds a dev- and CI-only `prysm_test_admin` role (`CREATEDB`, no access to production roles' objects) to that file and to its CI mirror. This is an infrastructure change in a dev script; runtime roles are unchanged. The init script only runs on a fresh volume, so existing local volumes need `docker compose down -v` once.
+- **Needs a role with `CREATEDB`, under strict conditions (owner, 2026-10-15):** the dev roles in `infra/docker/postgres/init/00-dev-roles.sql` have `NOCREATEDB`. PR 2 adds `prysm_test_admin` with **`NOSUPERUSER NOBYPASSRLS NOREPLICATION`** plus `CREATEDB`, and nothing else.
+  - **Where it exists:** only in the dev init script and its CI mirror. It is **never** created by a migration, by the Helm chart, by Compose for self-hosted installs, or by any production or self-hosted path. F-43 (production roles are provisioned by infrastructure) is unchanged.
+  - **Test that proves it is not used by app roles (PR 2):** assert `prysm_test_admin` is `NOSUPERUSER NOBYPASSRLS NOREPLICATION`; assert `prysm_app`, `prysm_platform` and `prysm_gateway_outbox` are not members of it and it is not a member of them (`pg_auth_members`); assert no service config or `.env.example` entry uses its credentials; and assert it owns no objects in the template or tenant databases it creates (they are created `OWNER prysm_owner`).
+  - **Existing local volumes:** the init script only runs on a fresh volume. Before any `down -v`, list the volumes it would remove and confirm each is PRYSM-prefixed. Compose project `prysm-dev` (`name:` in `compose.dev.yml`) owns exactly `prysm-dev_pg-data`, `prysm-dev_valkey-data`, `prysm-dev_seaweedfs-data` and `prysm-dev_lgtm-data` (checked 2026-10-15). `grademind_*`, `placement-portal_*` and `trivy-cache` are not PRYSM's and are never touched. Never run `docker volume prune`. Anonymous volumes attached to PRYSM containers would also be removed by `down -v`, so list those with `docker compose -p prysm-dev config --volumes` and `docker inspect` first.
 - **Valkey:** every suite uses a unique key prefix and deletes it at the end. **SeaweedFS:** a unique bucket prefix per suite.
 - **Proposed TRACKING wording (needs your approval, drafted in PR 1):**
   - Old F-22: "Integration tests with Testcontainers (Postgres, Valkey, SeaweedFS)".
@@ -249,12 +255,12 @@ Small, ordered PRs, each branching from a green `main`. "Verify" is the command 
 | #   | PR                                                                                                                                                                                                                          | Verify                                                            |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | 1   | **Docs only:** this plan, ADR-0012 and ADR-0013 (drafts, to be Accepted), CLAUDE.md layout update, TRACKING updates (F-22 wording, scope-change log), threat-model additions. Needs your approval.                          | `pnpm check:repo && pnpm format:check`                            |
-| 2   | `withTenant`, the two lint rules, the template-database test harness and `prysm_test_admin` role (F-22)                                                                                                                     | `pnpm --filter @prysm/db test`                                    |
-| 3   | Migration 0001: `tenants`, `tenant_settings`, `memberships`, `users` with RLS and grants; coverage test; **generic isolation suite** (F-12)                                                                                 | `pnpm db:migrate && pnpm --filter @prysm/db test`                 |
-| 4   | `packages/crypto`: KMS interface, local adapter, envelope and field encryption, `tenant_keys` (F-13, F-15)                                                                                                                  | `pnpm --filter @prysm/crypto test`                                |
+| 2   | `withTenant`, the two lint rules, the template-database test harness and `prysm_test_admin` role with its not-used-by-app-roles test (F-22)                                                                                 | `pnpm --filter @prysm/db test`                                    |
+| 3   | Migration 0001: `tenants`, `tenant_settings`, `memberships`, `users` with RLS and grants; coverage test; **generic isolation suite** (F-12); ADR-0013 allowlist tests G1-G8                                                 | `pnpm db:migrate && pnpm --filter @prysm/db test`                 |
+| 4   | `packages/crypto`: KMS interface, local adapter, envelope and field encryption, `tenant_keys`, key-lifecycle policy and crypto inventory documents (F-13, F-15)                                                             | `pnpm --filter @prysm/crypto test`                                |
 | 5   | API foundations: zod type provider, problem+json, idempotency, headers, OpenAPI generation with drift check, route-validation lint (F-18, F-19 api, F-21). **Adds `oasdiff` and Spectral as CI tools: need your approval.** | `pnpm --filter @prysm/api test && pnpm openapi:check`             |
-| 6   | Passwords, sessions, signup/login/logout, lockout, CSRF, `admin_audit_log`, `auth_events`, offline breached-password list, `MailSender` + dev-only Mailpit compose service                                                  | `pnpm --filter @prysm/api test`                                   |
-| 7   | TOTP enrol/verify, recovery codes, `mfa_pending` gating                                                                                                                                                                     | `pnpm --filter @prysm/api test`                                   |
+| 6   | Passwords, sessions, signup/login/logout, lockout, CSRF, `admin_audit_log`, `auth_events`, offline breached-password list, session list/end and admin end-session, `MailSender` + dev-only Mailpit compose service          | `pnpm --filter @prysm/api test`                                   |
+| 7   | TOTP enrol/verify (current step only), 128-bit recovery codes, `mfa_pending` gating, re-authentication for MFA changes                                                                                                      | `pnpm --filter @prysm/api test`                                   |
 | 8   | RBAC matrix, `applications`, tenant settings, separation-of-duties primitive                                                                                                                                                | `pnpm --filter @prysm/api test`                                   |
 | 9   | API keys: create, rotate, revoke, authenticate; API cross-tenant tests                                                                                                                                                      | `pnpm --filter @prysm/api test`                                   |
 | 10  | Web shell + CSP: Next middleware with nonce, secure headers, `/api/v1` proxy, layout, session-aware shell (F-19 web)                                                                                                        | `pnpm --filter @prysm/web test`                                   |
@@ -300,7 +306,7 @@ Not proposed any more: `testcontainers` (Q6), `@simplewebauthn/*` and `openid-cl
 
 ## 13. Risks
 
-- **We own security-critical code** (sessions, MFA). Mitigation: libraries for all primitives (ADR-0012), the failure-path tests above, and an ASVS L2 mapping.
+- **We own security-critical code** (sessions, MFA). Mitigation: libraries for all primitives (ADR-0012), the failure-path tests above, and an ASVS 5.0.0 L2 mapping in ADR-0012 (rebuilt from the standard's text; 73 cited requirement ids checked by script).
 - **Global tables are outside RLS.** Mitigation: the allowlist test, narrow grants, and no tenant data in them.
 - **Timing and enumeration leaks** on login and key lookup. Mitigation: dummy hashing and tests that compare response shapes.
 - **Local Docker on this machine can't stop running containers** (see §10). The harness avoids container control, so this no longer affects tests. It still blocks `infra:down` and `stack:up` rebuilds until the daemon is fixed.
