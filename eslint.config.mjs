@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
+import prysm from './scripts/eslint/prysm-plugin.mjs';
 
 export default tseslint.config(
   {
@@ -18,6 +19,16 @@ export default tseslint.config(
       // Payloads must never reach logs through console; use the platform logger.
       'no-console': 'error',
     },
+  },
+  {
+    // Database boundary (ADR-0003, ADR-0007): only packages/db may touch drivers, pools or raw queries.
+    files: ['**/*.ts', '**/*.tsx'],
+    plugins: { prysm },
+    rules: { 'prysm/no-raw-pool': 'error', 'prysm/db-access-in-with-tenant': 'error' },
+  },
+  {
+    files: ['packages/db/**'],
+    rules: { 'prysm/no-raw-pool': 'off', 'prysm/db-access-in-with-tenant': 'off' },
   },
   {
     files: ['**/*.mjs', '**/*.js'],
