@@ -22,7 +22,8 @@ export interface TenantTx {
 
 /**
  * Client for the global identity tables (ADR-0013) inside `withGlobal`. No tenant is set, so Postgres RLS
- * would return nothing for a tenant table anyway; on top of that, any statement that names one is refused.
+ * returns nothing for a tenant table and rejects writes to it; as defence in depth, any statement that names one
+ * is also refused before it is sent.
  */
 export interface GlobalTx {
   query<R extends object = Record<string, unknown>>(
@@ -44,6 +45,10 @@ export interface Db {
    * Runs `fn` in a transaction with no tenant, for the global identity tables on the ADR-0013 allowlist
    * (users and, as they arrive, sessions and MFA tables). A statement that names a tenant table is refused
    * before it is sent; use `withTenant` for those.
+   *
+   * That refusal is a text match and is **defence in depth only**: unicode-escaped identifiers or dynamic
+   * SQL can walk around it. The control is Postgres RLS: with no tenant set, every tenant table returns no
+   * rows and rejects writes (tests in `with-global-bypass.test.ts` run the statements without the guard).
    */
   withGlobal<T>(fn: (tx: GlobalTx) => Promise<T>): Promise<T>;
   /** Readiness probe. Touches no tenant data, so it needs no tenant. */
