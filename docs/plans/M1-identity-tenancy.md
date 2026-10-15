@@ -1,6 +1,6 @@
 # M1 plan: Identity and tenancy
 
-Status: **Proposed. Owner answers recorded 2026-10-15 and 2026-10-15 (round 2). ADR-0012 and ADR-0013 are Proposed, not Accepted.** No M1 code has been written, and none starts until ADR-0012 is Accepted. CLAUDE.md requires an approved plan before each milestone starts.
+Status: **Approved to start with PR 2 (owner, 2026-10-15). ADR-0012 and ADR-0013 are Accepted.** PR 1 (docs) is [#19](https://github.com/bsrikumar855-dot/PRYSM/pull/19). Each later PR still stops before pushing for the owner's review.
 
 Prerequisite (met): M0 is merged and all 7 CI jobs are green on `main` ([run 38678172559](https://github.com/bsrikumar855-dot/PRYSM/actions/runs/38678172559), after [PR #16](https://github.com/bsrikumar855-dot/PRYSM/pull/16)). **No M1 code starts until ADR-0012 is Accepted.**
 
@@ -243,7 +243,7 @@ One harness for local and CI (owner, 2026-10-15). No Testcontainers.
   - **Test that proves it is not used by app roles (PR 2):** assert `prysm_test_admin` is `NOSUPERUSER NOBYPASSRLS NOREPLICATION`; assert `prysm_app`, `prysm_platform` and `prysm_gateway_outbox` are not members of it and it is not a member of them (`pg_auth_members`); assert no service config or `.env.example` entry uses its credentials; and assert it owns no objects in the template or tenant databases it creates (they are created `OWNER prysm_owner`).
   - **Existing local volumes:** the init script only runs on a fresh volume. Before any `down -v`, list the volumes it would remove and confirm each is PRYSM-prefixed. Compose project `prysm-dev` (`name:` in `compose.dev.yml`) owns exactly `prysm-dev_pg-data`, `prysm-dev_valkey-data`, `prysm-dev_seaweedfs-data` and `prysm-dev_lgtm-data` (checked 2026-10-15). `grademind_*`, `placement-portal_*` and `trivy-cache` are not PRYSM's and are never touched. Never run `docker volume prune`. Anonymous volumes attached to PRYSM containers would also be removed by `down -v`, so list those with `docker compose -p prysm-dev config --volumes` and `docker inspect` first.
 - **Valkey:** every suite uses a unique key prefix and deletes it at the end. **SeaweedFS:** a unique bucket prefix per suite.
-- **Proposed TRACKING wording (needs your approval, drafted in PR 1):**
+- **TRACKING wording (approved by the owner, 2026-10-15):**
   - Old F-22: "Integration tests with Testcontainers (Postgres, Valkey, SeaweedFS)".
   - New F-22: "Integration tests against the compose/CI Postgres, Valkey and SeaweedFS through one harness for local and CI. Each suite gets its own database cloned from a migrated template (`CREATE DATABASE … TEMPLATE`), a unique Valkey key prefix and a unique bucket prefix. No Testcontainers."
   - Reason recorded in §3 of TRACKING: Testcontainers cannot clean up on the owner's Docker (snap daemon denies stop/remove), and one harness avoids two ways to run the same test.
@@ -350,7 +350,7 @@ _Decision (owner, 2026-10-15):_ **candidate A (NCSC top 100k).** Nothing is adde
 | Q4  | Packages approved. `@node-rs/argon2` dropped for `node:crypto` `argon2` (conditions in ADR-0012). `@axe-core/playwright` approved. `oasdiff` and Spectral approved as CI-only pinned images              |
 | Q5  | `packages/crypto` yes; `authz` inside `core-types`; CLAUDE.md layout updated in PR 1                                                                                                                     |
 | Q6  | Wording approved. `prysm_test_admin` approved only as `NOSUPERUSER NOBYPASSRLS NOREPLICATION`, dev/CI init only, with a not-used-by-app-roles test; `down -v` lists volumes first                        |
-| Q7  | **Pending.** ADR-0012 and ADR-0013 stay Proposed until you flip them. ASVS 5.0.0 adopted; password minimum 15; TOTP ±1 step tolerance after reading V6.5.5 verbatim                                      |
+| Q7  | **Done.** ADR-0012 and ADR-0013 Accepted 2026-10-15. ASVS 5.0.0 adopted; password minimum 15; TOTP ±1 step tolerance after reading V6.5.5 verbatim                                                       |
 | Q8  | 30 min idle, 12 h absolute                                                                                                                                                                               |
 | Q9  | MFA mandatory for every account                                                                                                                                                                          |
 | Q10 | Tenant in the key with conditions: trusted only after the hash compare; lookup by key id, then `withTenant`, then constant-time compare; fixed `prysm_` prefix; never log keys; never `SECURITY DEFINER` |

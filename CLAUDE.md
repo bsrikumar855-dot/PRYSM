@@ -2,7 +2,7 @@
 
 PRYSM is a continuous AI compliance operating system: it turns AI rules (laws, standards, customer policy documents) into versioned controls, enforces them inline on every model call through a gateway, and keeps a tamper-evident evidence trail that auditors can verify offline. It is a production multi-tenant SaaS with a self-hosted edition, built from the same codebase.
 
-**Status:** M0 (Foundations) is in review. ADR-0001..0011 are _Accepted_. Post a plan and get owner approval before starting each milestone.
+**Status:** M0 (Foundations) is in review. ADR-0001..0013 are _Accepted_. Post a plan and get owner approval before starting each milestone.
 
 ## Owner decisions that shape day-to-day work
 

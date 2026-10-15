@@ -1,6 +1,6 @@
 # ADR-0012: Identity and authentication
 
-Status: **Proposed** · 2026-10-15. Not Accepted. No M1 code starts until the owner marks this Accepted.
+Status: **Accepted** · 2026-10-15 (owner read and accepted it the same day it was proposed). M1 code may start under the M1 plan.
 
 Owner decisions recorded so far (2026-10-15; they do not change the status): drop `@node-rs/argon2` and use `node:crypto` `argon2`; breached-password list candidate A (NCSC top 100k); adopt ASVS 5.0.0; password minimum 15 with no composition rules; the API-key layout exception with its conditions; the signup tenant-id fix; the three ADR-0007 amendments (in ADR-0013).
 

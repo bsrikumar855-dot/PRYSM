@@ -1,6 +1,6 @@
 # ADR-0013: Global identity tables and the global key namespace
 
-Status: **Proposed** · 2026-10-15. Amends ADR-0007 only where stated; everything else in ADR-0007 stands. Takes effect when the owner marks it Accepted.
+Status: **Accepted** · 2026-10-15. Amends ADR-0007 only where stated; everything else in ADR-0007 stands.
 
 ## Context
 
@@ -50,7 +50,7 @@ Checked line by line on 2026-10-15. ADR-0007 stands except where listed here.
 | Test 1 (coverage), test 2 (generic isolation), test 3 (API 404s)                  | Unchanged and still required; G1–G8 are added beside them.                                                         |
 | Test 4 / ADR-0003 lint: "no DB access outside `withTenant`"                       | **Amended**: also allowed through `withGlobal` for allowlisted tables only (point 5).                              |
 
-When this ADR is Accepted, two places must be updated to match: `docs/ARCHITECTURE.md` §4 ("Every DB access goes through `withTenant`") and §9 invariant 1. ADR-0007 gets a header line "Amended by ADR-0013" in the same PR.
+`docs/ARCHITECTURE.md` §4 and §9 were updated to match in the PR that accepted this ADR, and ADR-0007 carries a header line "Amended by ADR-0013".
 
 ## Consequences
 

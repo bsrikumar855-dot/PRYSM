@@ -15,8 +15,8 @@ Format: Context → Decision → Consequences → Alternatives. Status is one of
 | [0009](0009-redis-compatible-store.md)                | Redis-compatible store, licensing, strict durability via Postgres outbox (amends 0004)             | Accepted |
 | [0010](0010-llm-providers-and-data-use.md)            | LLM providers and data-use requirements                                                            | Accepted |
 | [0011](0011-object-storage.md)                        | Object storage: cloud-native Object Lock for SaaS, SeaweedFS for dev/self-hosted, conformance test | Accepted |
-| [0012](0012-identity-and-authentication.md)           | Identity and authentication (thin in-house layer on vetted primitives)                             | Proposed |
-| [0013](0013-global-identity-tables.md)                | Global identity tables and the `g:` key namespace (amends 0007)                                    | Proposed |
+| [0012](0012-identity-and-authentication.md)           | Identity and authentication (thin in-house layer on vetted primitives)                             | Accepted |
+| [0013](0013-global-identity-tables.md)                | Global identity tables and the `g:` key namespace (amends 0007)                                    | Accepted |
 
 Supporting material: [`bench/waitaof-bench.mjs`](bench/waitaof-bench.mjs), [`bench/outbox-bench.mjs`](bench/outbox-bench.mjs) (ADR-0009 measurements).
 

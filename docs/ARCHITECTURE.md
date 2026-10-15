@@ -136,9 +136,9 @@ Scheduled checks (drift) and collectors take the same path from the `workers` si
 - One Postgres per region cell with a shared schema. Every tenant table has `tenant_id` with `ENABLE` + `FORCE ROW LEVEL SECURITY`. The policy is `tenant_id = current_setting('app.tenant_id')::uuid`.
 - The app connects as `prysm_app`, which has no `BYPASSRLS` and does not own the tables. Migrations run as `prysm_owner`. Cross-tenant platform jobs such as anchoring use `prysm_platform`, only through audited code paths.
 - Every DB access goes through `withTenant(tenantId, tx => …)`, which runs `set_config('app.tenant_id', $1, true)` inside a transaction. That makes it safe with PgBouncer transaction pooling.
-- **Global identity tables (proposed in ADR-0013; applies once that ADR is Accepted).** A short, reviewed allowlist of tables that hold identity and no tenant data (`users`, MFA factors and recovery codes, `sessions`, `auth_events`) sits outside tenant RLS and is reached only through `withGlobal`. The one place a tenant is read before authentication is the API-key lookup: the tenant part of the key only selects the scope for a lookup by key id, and nothing is used unless the constant-time hash compare succeeds.
+- **Global identity tables (ADR-0013).** A short, reviewed allowlist of tables that hold identity and no tenant data (`users`, MFA factors and recovery codes, `sessions`, `auth_events`) sits outside tenant RLS and is reached only through `withGlobal`. The one place a tenant is read before authentication is the API-key lookup: the tenant part of the key only selects the scope for a lookup by key id, and nothing is used unless the constant-time hash compare succeeds.
 - FKs are composite `(tenant_id, id)`, so a row cannot reference another tenant's row.
-- Redis keys, S3 prefixes and queue job payloads all carry the `tenant_id`. The one exception (ADR-0013, proposed) is the `g:` Redis prefix for state that exists before a tenant does, such as login rate limits and lockouts. S3 payloads are encrypted client-side with the tenant DEK.
+- Redis keys, S3 prefixes and queue job payloads all carry the `tenant_id`. The one exception (ADR-0013) is the `g:` Redis prefix for state that exists before a tenant does, such as login rate limits and lockouts. S3 payloads are encrypted client-side with the tenant DEK.
 - **Data residency:** each region is an independent cell (DB, Redis, storage, gateway). A tenant is pinned to one region. A thin global directory maps login domains to regions (M12).
 - Self-hosted is the same code with one tenant row.
 
@@ -227,4 +227,4 @@ flowchart TB
 4. The policy engine gives the same output for the same `(compiled policy, facts, now)`, which is checked by property tests.
 5. The verifier rejects any altered, reordered or removed record, anchor or signature (mutation test vectors shared by the TS and Go implementations).
 6. UI strings, report templates and docs contain no "compliant / compliance certified" claims (CI wording check with an allowlist of exceptions).
-7. _(Proposed, ADR-0013; applies once Accepted.)_ The set of `public` tables without a `tenant_id` column equals the reviewed allowlist exactly, so a tenant table cannot sit outside RLS by omission (test G1), and signup cannot write into an existing tenant (test G9).
+7. _(ADR-0013.)_ The set of `public` tables without a `tenant_id` column equals the reviewed allowlist exactly, so a tenant table cannot sit outside RLS by omission (test G1), and signup cannot write into an existing tenant (test G9).
