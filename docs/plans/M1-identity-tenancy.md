@@ -1,31 +1,31 @@
 # M1 plan: Identity and tenancy
 
-Status: **Proposed, awaiting owner approval** (2026-10-15). No M1 code has been written. CLAUDE.md requires an approved plan before each milestone starts.
+Status: **Proposed, owner answers recorded 2026-10-15; awaiting approval of the dependency list (Q4) and ADR-0012 (Q7).** No M1 code has been written. CLAUDE.md requires an approved plan before each milestone starts.
 
-Prerequisite: M0 is merged, but `main` CI was red when this plan was written. [PR #16](https://github.com/bsrikumar855-dot/PRYSM/pull/16) fixes the known causes. M1 starts only after a green run on `main`.
+Prerequisite (met): M0 is merged and all 7 CI jobs are green on `main` ([run 38678172559](https://github.com/bsrikumar855-dot/PRYSM/actions/runs/38678172559), after [PR #16](https://github.com/bsrikumar855-dot/PRYSM/pull/16)). **No M1 code starts until ADR-0012 is Accepted.**
 
 ## 1. Scope
 
 **Gate (TRACKING §1):** sign up → MFA → create app → API key, and the cross-tenant test suite passes.
 
-| ID   | Requirement                                                           | In this plan                                                                               |
-| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| F-12 | RLS on every tenant table + coverage test + generic isolation test    | Yes                                                                                        |
-| F-13 | Envelope encryption: per-tenant DEK, KMS adapter interface, local KMS | Yes                                                                                        |
-| F-15 | Field-level encryption for sensitive columns                          | Yes (first users: MFA secrets, SSO config)                                                 |
-| F-18 | OpenAPI 3.1 generated, committed, drift and breaking-change check     | Yes                                                                                        |
-| F-19 | CSP and secure headers (api, web)                                     | Yes                                                                                        |
-| F-21 | Lint rule against unvalidated route handlers                          | Yes (the M0 half is done)                                                                  |
-| F-22 | Integration tests with Testcontainers                                 | Yes, with a caveat (Q6)                                                                    |
-| F-23 | Playwright e2e + axe on critical flows                                | Yes (first UI)                                                                             |
-| I-01 | Tenants, users, memberships                                           | Yes (needed by the gate)                                                                   |
-| I-02 | Password (Argon2id) + MFA                                             | Password + TOTP yes. WebAuthn: Q1                                                          |
-| I-06 | RBAC with an exhaustive permission-matrix test                        | Yes (needed to create apps and keys safely)                                                |
-| I-07 | Scoped, hashed, rotatable API keys                                    | Yes (needed by the gate)                                                                   |
-| I-08 | Admin AuditLog, append-only                                           | Yes                                                                                        |
-| I-09 | Tenant settings: retention, residency, SSO config                     | Settings storage only; retention enforcement is M2                                         |
-| I-11 | Separation-of-duties primitive                                        | Primitive only (`assertNotSelfApproval`); no approval workflow yet                         |
-| I-03 | OIDC SSO                                                              | **Open (Q1).** TRACKING lists it in M1, but it was not in the scope you gave for this plan |
+| ID   | Requirement                                                           | In this plan                                                       |
+| ---- | --------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| F-12 | RLS on every tenant table + coverage test + generic isolation test    | Yes                                                                |
+| F-13 | Envelope encryption: per-tenant DEK, KMS adapter interface, local KMS | Yes                                                                |
+| F-15 | Field-level encryption for sensitive columns                          | Yes (first users: MFA secrets, SSO config)                         |
+| F-18 | OpenAPI 3.1 generated, committed, drift and breaking-change check     | Yes                                                                |
+| F-19 | CSP and secure headers (api, web)                                     | Yes                                                                |
+| F-21 | Lint rule against unvalidated route handlers                          | Yes (the M0 half is done)                                          |
+| F-22 | Integration tests (one local + CI harness, no Testcontainers)         | Yes (Q6, wording change pending approval)                          |
+| F-23 | Playwright e2e + axe on critical flows                                | Yes (first UI)                                                     |
+| I-01 | Tenants, users, memberships                                           | Yes (needed by the gate)                                           |
+| I-02 | Password (Argon2id) + MFA                                             | Password + TOTP. WebAuthn deferred (Q1)                            |
+| I-06 | RBAC with an exhaustive permission-matrix test                        | Yes (needed to create apps and keys safely)                        |
+| I-07 | Scoped, hashed, rotatable API keys                                    | Yes (needed by the gate)                                           |
+| I-08 | Admin AuditLog, append-only                                           | Yes                                                                |
+| I-09 | Tenant settings: retention, residency, SSO config                     | Settings storage only; retention enforcement is M2                 |
+| I-11 | Separation-of-duties primitive                                        | Primitive only (`assertNotSelfApproval`); no approval workflow yet |
+| I-03 | OIDC SSO                                                              | **Deferred** (Q1, owner 2026-10-15) to a follow-up after the gate  |
 
 I-01, I-02, I-06, I-07, I-08, I-09 and I-11 are in TRACKING's M1 but were not in the scope list in the request. I included the ones the gate cannot work without and flagged the rest.
 
@@ -37,7 +37,7 @@ Out of scope: SAML and SCIM (M11), key-management UI (I-10, M11), cloud KMS adap
 - Dev roles from `infra/docker/postgres/init/00-dev-roles.sql`: `prysm_owner`, `prysm_app`, `prysm_platform`, `prysm_gateway_outbox`. The runtime roles are `NOSUPERUSER NOBYPASSRLS` and own nothing.
 - `apps/api` is a Fastify skeleton with health and readiness only. `apps/web` has only `/healthz` and `/readyz`.
 - `packages/platform` has the server factory, zod config loader, pino logger with a field allowlist, and OTel setup.
-- Dependencies present: fastify, zod, drizzle-orm, pg, ioredis. **Nothing for password hashing, TOTP, cookies, OpenAPI, Playwright or Testcontainers.**
+- Dependencies present: fastify, zod, drizzle-orm, pg, ioredis. **Nothing for password hashing, TOTP, cookies, OpenAPI or Playwright.**
 
 ## 3. Domain and schema
 
@@ -124,15 +124,15 @@ The adr README already reserves an M1 ADR for "identity provider build-vs-embed"
 ### 4.2 Passwords
 
 - **Argon2id**, parameters stored with each hash so we can rehash on login. Start at the OWASP minimum (m = 19 MiB, t = 2, p = 1) as a floor and tune up on the reference machine so a hash takes roughly 100 ms.
-- Minimum length 12, no composition rules, maximum 128. Common-password and breached-password check: **Q3**.
+- Minimum length 12, no composition rules, maximum 128. Breached-password check against a modest **offline** list (Q3); no HIBP or other external call.
 - Login does constant-work comparison even for unknown emails (dummy hash) and returns one generic error, so accounts can't be enumerated.
 - Lockout with exponential backoff per account and per source, in Valkey, plus `auth_events` rows. Rate limits per route.
 
 ### 4.3 Sessions
 
 - Opaque 256-bit random token in a `__Host-` cookie (`HttpOnly; Secure; SameSite=Lax; Path=/`). Only the SHA-256 is stored in `sessions`.
-- Idle timeout 30 min and absolute 12 h (proposed, Q8). Rotated on login, on MFA success, on tenant switch and on privilege change. Revocable, and listed per user.
-- A session starts as `mfa_pending` and can call **only** the MFA enrol/verify endpoints until `mfa_verified_at` is set. MFA is mandatory for every account (Q9).
+- Idle timeout 30 min and absolute 12 h (Q8, approved). Rotated on login, on MFA success, on tenant switch and on privilege change. Revocable, and listed per user.
+- A session starts as `mfa_pending` and can call **only** the MFA enrol/verify endpoints until `mfa_verified_at` is set. MFA is mandatory for every account (Q9, approved).
 - CSRF: `SameSite=Lax`, an `Origin`/`Sec-Fetch-Site` check on mutations, and a double-submit token (THREAT_MODEL 3.2).
 - Alternative considered: sessions in Valkey. Rejected for M1 because Valkey runs with `appendfsync everysec` (up to about 1 s of loss), and session revocation is something we want to audit. Postgres costs one indexed lookup per request, which is fine for the console and fits M1's load.
 
@@ -141,15 +141,15 @@ The web app and API share one browser origin so the `__Host-` cookie works: Next
 ### 4.4 MFA
 
 - **TOTP** (RFC 6238; SHA-1, 6 digits, 30 s, ±1 step window), 160-bit secret, replay protection through `last_used_step`, 10 single-use recovery codes stored as SHA-256 (they are high-entropy random, so a slow hash adds nothing). Secrets are field-encrypted.
-- **WebAuthn** is named in I-02. It adds a library and a UI flow. I recommend TOTP for M1 and WebAuthn as a follow-up PR if you want it in M1 (Q1).
+- **WebAuthn** (named in I-02) and OIDC (I-03) are deferred to follow-ups after the gate (Q1, owner 2026-10-15); TRACKING keeps them at M1 until the scope-change log is updated in PR 1.
 - Alternatives considered: SMS or email codes (rejected: phishable and need a delivery service), TOTP only forever (rejected in the long term, since I-02 lists WebAuthn).
 
 ### 4.5 API keys
 
-- Format: `prysm_<kind>_<key_id>_<secret>`, for example `prysm_live_k4f9x2…_<43 base64url chars>`. The `prysm_` prefix lets secret scanners (including our own gitleaks rule, which we add) find leaked keys. `<secret>` is 256 bits from the OS CSPRNG. A short checksum suffix lets a scanner reject typos offline.
+- Layout: `prysm_<tenant>_<key_id>_<secret>`. `<tenant>` is the tenant UUID, encoded; `<key_id>` is a random public id; `<secret>` is 256 bits from the OS CSPRNG. The `prysm_` prefix lets secret scanners (including a gitleaks rule we add) find leaked keys. The string is opaque: nothing in it is signed, decoded for trust or self-describing, and no checksum is defined (ADR-0012 lists this as the one identifier layout we define).
 - Storage: `key_id` (public, indexed) and `secret_hash = SHA-256("prysm.apikey.v1\n" ‖ full key)`. A fast hash is correct here because the secret has 256 bits of entropy (unlike a password), and the gateway needs microsecond lookups in M4. Comparison is constant-time. The key is shown **once** at creation.
 - Scopes: `gateway`, `sdk`, `collector`, `ingest`, scoped to one application and one environment. Rotation creates a new key that records `replaces_key_id`; the old key keeps working for a grace period the caller chooses, then is revoked.
-- **Lookup before the tenant is known:** the gateway and api get only a key. Options: (a) put a non-secret tenant handle in the key and set `app.tenant_id` from it, then look up under RLS (a forged handle can't match a hash that belongs to another tenant); (b) a `SECURITY DEFINER` lookup function owned by `prysm_owner`, which is an intentional RLS bypass. I recommend (a). It keeps RLS the only access path and adds no bypass to review (Q10).
+- **Lookup (Q10, owner-decided):** split the presented key into `<tenant>`, `<key_id>`, `<secret>`; call `withTenant(<tenant>)`; select the row by `key_id` under RLS; compare `SHA-256(domain ‖ full key)` to `secret_hash` in constant time. A forged tenant part finds no row or a hash mismatch. **`SECURITY DEFINER` functions are never used** and no RLS bypass is added.
 - Alternative considered: HMAC-SHA256 with a server-side pepper. Better against a database-only leak, but it needs pepper management and rotation. Listed as a hardening option for M11.
 
 ### 4.6 Things that need a new ADR or an ADR amendment
@@ -162,7 +162,7 @@ The web app and API share one browser origin so the `__Host-` cookie works: Next
 
 ## 5. Envelope encryption (F-13, F-15)
 
-New internal package `packages/crypto` (no external dependency; `node:crypto` only). The repo layout in CLAUDE.md doesn't list it, so this needs your OK (Q5).
+New internal package `packages/crypto` (no external dependency; `node:crypto` only). Approved (Q5); CLAUDE.md's layout section is updated in PR 1.
 
 ```ts
 interface KmsAdapter {
@@ -192,7 +192,7 @@ type KeyContext = { purpose: 'tenant' | 'auth'; tenantId?: string; version: numb
 
 ## 7. Authorization (I-06, I-11)
 
-- A single `authz` module (inside `packages/core-types` unless Q5 says otherwise) defines `Permission` and a `ROLE_PERMISSIONS` map.
+- A single `authz` module (inside `packages/core-types`, per Q5) defines `Permission` and a `ROLE_PERMISSIONS` map.
 - **Exhaustive matrix test:** it iterates roles × permissions and compares against a reviewed fixture (a table committed in the repo). Adding a permission without deciding every role fails the test. The auditor role holds only read permissions, and a test asserts it.
 - Every route declares the permission it requires, and the route-lint rule (F-21) fails a route that doesn't.
 - `assertNotSelfApproval(authorId, approverId)` is the I-11 primitive. Callers arrive in M5/M6.
@@ -207,7 +207,7 @@ Flows, all behind CSP and with axe checks:
 4. API keys: create (shown once, copy), rotate, revoke.
 5. Log out and session expiry.
 
-Web uses React forms with server-side validation reusing the zod schemas. No component library is added in M1 unless you approve one (Q4); plain accessible HTML is enough for these five screens.
+Web uses React forms with server-side validation reusing the zod schemas. No component library is added in M1; plain accessible HTML is enough for these five screens.
 
 ## 9. Test plan
 
@@ -229,69 +229,97 @@ Web uses React forms with server-side validation reusing the zod schemas. No com
 
 **Threat model delta for M1** (to land in `THREAT_MODEL.md` §6 with the milestone): new trust boundary is the browser → web → api session path; new assets are password hashes, MFA seeds and API-key hashes (A7); the global auth tables are an intentional exception to tenant RLS. The STRIDE rows for api/web in §3.2 become implemented controls, each linked to a test above.
 
-## 10. PR breakdown
+## 10. Test harness (F-22, Q6)
 
-Small, ordered PRs, each branching from a green `main`. "Verify" is the command that must pass before the PR is opened.
+One harness for local and CI (owner, 2026-10-15). No Testcontainers.
 
-| #   | PR                                                                                                                                                                                     | Verify                                                |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| 1   | **Docs only:** ADR-0012 (identity), ADR amendment for global tables and the `g:` namespace, threat-model additions, TRACKING updates. Needs your approval.                             | `pnpm check:repo && pnpm format:check`                |
-| 2   | `withTenant`, the two lint rules, and Testcontainers wiring in `packages/db` (F-22 foundation)                                                                                         | `pnpm --filter @prysm/db test`                        |
-| 3   | Migration `0001`: `tenants`, `tenant_settings`, `memberships`, `users` with RLS, grants and composite FKs. RLS coverage test extended. **Generic isolation suite arrives here** (F-12) | `pnpm db:migrate && pnpm --filter @prysm/db test`     |
-| 4   | `packages/crypto`: KMS interface, local adapter, envelope and field encryption, `tenant_keys` migration (F-13, F-15)                                                                   | `pnpm --filter @prysm/crypto test`                    |
-| 5   | API foundations: zod type provider, problem+json, idempotency, secure headers, OpenAPI generation + drift/oasdiff/Spectral in CI, route-validation lint (F-18, F-19 api, F-21)         | `pnpm --filter @prysm/api test && pnpm openapi:check` |
-| 6   | Passwords, sessions, signup/login/logout, lockout, CSRF, `admin_audit_log` and `auth_events` (I-01, I-08)                                                                              | `pnpm --filter @prysm/api test`                       |
-| 7   | TOTP enrol/verify, recovery codes, `mfa_pending` gating (I-02)                                                                                                                         | `pnpm --filter @prysm/api test`                       |
-| 8   | RBAC matrix, `applications`, tenant settings, separation-of-duties primitive (I-06, I-09, I-11)                                                                                        | `pnpm --filter @prysm/api test`                       |
-| 9   | API keys: create, rotate, revoke, authenticate (I-07), including the API cross-tenant tests                                                                                            | `pnpm --filter @prysm/api test`                       |
-| 10  | Web: CSP middleware, `/api/v1` proxy, the five screens, Playwright + axe (F-19 web, F-23)                                                                                              | `pnpm --filter @prysm/web test && pnpm e2e`           |
-| 11  | M1 gate: `scripts/verify-m1.mjs`, CI job for the cross-tenant suite and e2e, runbook, TRACKING rows flipped with linked tests, threat-model revision                                   | `pnpm verify:m1` and a green CI run                   |
+- Suites run against the stack that already exists: the compose services locally (`pnpm infra:up`) and the same services in the CI job. Nothing starts or stops containers.
+- **Postgres:** a one-time migrated **template database** (`prysm_template`, created by `pnpm db:migrate` against it). Each suite creates its own database with `CREATE DATABASE prysm_t_<suite>_<random> TEMPLATE prysm_template`, connects as `prysm_app` and `prysm_owner` to it, and drops it afterwards (a global-setup sweep drops leftovers older than an hour). This gives full isolation, including for the cross-tenant suite, and `FORCE ROW LEVEL SECURITY` runs against a real schema.
+- **Needs a role with `CREATEDB`:** the dev roles in `infra/docker/postgres/init/00-dev-roles.sql` have `NOCREATEDB`. PR 2 adds a dev- and CI-only `prysm_test_admin` role (`CREATEDB`, no access to production roles' objects) to that file and to its CI mirror. This is an infrastructure change in a dev script; runtime roles are unchanged. The init script only runs on a fresh volume, so existing local volumes need `docker compose down -v` once.
+- **Valkey:** every suite uses a unique key prefix and deletes it at the end. **SeaweedFS:** a unique bucket prefix per suite.
+- **Proposed TRACKING wording (needs your approval, drafted in PR 1):**
+  - Old F-22: "Integration tests with Testcontainers (Postgres, Valkey, SeaweedFS)".
+  - New F-22: "Integration tests against the compose/CI Postgres, Valkey and SeaweedFS through one harness for local and CI. Each suite gets its own database cloned from a migrated template (`CREATE DATABASE … TEMPLATE`), a unique Valkey key prefix and a unique bucket prefix. No Testcontainers."
+  - Reason recorded in §3 of TRACKING: Testcontainers cannot clean up on the owner's Docker (snap daemon denies stop/remove), and one harness avoids two ways to run the same test.
 
-Optional PRs depending on your answers: WebAuthn (after 7), OIDC SSO (after 8), invitations (after 8).
+## 11. PR breakdown
 
-TRACKING rows flip to `[x]` only in PR 11 (or the PR that lands the proving test), each with its test linked.
+Small, ordered PRs, each branching from a green `main`. "Verify" is the command that must pass before the PR is opened. Scripts that don't exist yet are added by the PR that lists them.
+
+| #   | PR                                                                                                                                                                                                                          | Verify                                                            |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 1   | **Docs only:** this plan, ADR-0012 and ADR-0013 (drafts, to be Accepted), CLAUDE.md layout update, TRACKING updates (F-22 wording, scope-change log), threat-model additions. Needs your approval.                          | `pnpm check:repo && pnpm format:check`                            |
+| 2   | `withTenant`, the two lint rules, the template-database test harness and `prysm_test_admin` role (F-22)                                                                                                                     | `pnpm --filter @prysm/db test`                                    |
+| 3   | Migration 0001: `tenants`, `tenant_settings`, `memberships`, `users` with RLS and grants; coverage test; **generic isolation suite** (F-12)                                                                                 | `pnpm db:migrate && pnpm --filter @prysm/db test`                 |
+| 4   | `packages/crypto`: KMS interface, local adapter, envelope and field encryption, `tenant_keys` (F-13, F-15)                                                                                                                  | `pnpm --filter @prysm/crypto test`                                |
+| 5   | API foundations: zod type provider, problem+json, idempotency, headers, OpenAPI generation with drift check, route-validation lint (F-18, F-19 api, F-21). **Adds `oasdiff` and Spectral as CI tools: need your approval.** | `pnpm --filter @prysm/api test && pnpm openapi:check`             |
+| 6   | Passwords, sessions, signup/login/logout, lockout, CSRF, `admin_audit_log`, `auth_events`, offline breached-password list, `MailSender` + dev-only Mailpit compose service                                                  | `pnpm --filter @prysm/api test`                                   |
+| 7   | TOTP enrol/verify, recovery codes, `mfa_pending` gating                                                                                                                                                                     | `pnpm --filter @prysm/api test`                                   |
+| 8   | RBAC matrix, `applications`, tenant settings, separation-of-duties primitive                                                                                                                                                | `pnpm --filter @prysm/api test`                                   |
+| 9   | API keys: create, rotate, revoke, authenticate; API cross-tenant tests                                                                                                                                                      | `pnpm --filter @prysm/api test`                                   |
+| 10  | Web shell + CSP: Next middleware with nonce, secure headers, `/api/v1` proxy, layout, session-aware shell (F-19 web)                                                                                                        | `pnpm --filter @prysm/web test`                                   |
+| 11  | Web screens: sign up, log in, MFA enrol/challenge, applications, API keys, logout                                                                                                                                           | `pnpm --filter @prysm/web test && pnpm --filter @prysm/web build` |
+| 12  | E2E: Playwright flows against the real stack and axe checks on every screen (F-23)                                                                                                                                          | `pnpm e2e`                                                        |
+| 13  | M1 gate: `scripts/verify-m1.mjs`, CI job for the cross-tenant suite and e2e, runbook, TRACKING rows flipped with linked tests, threat-model revision                                                                        | `pnpm verify:m1`, then a green CI run                             |
+
+Deferred follow-ups (not in the 13): WebAuthn, OIDC SSO, invitations, tenant switcher UI.
+
+TRACKING rows flip to `[x]` only in the PR that lands the proving test, each linked.
 
 **TODO registry:** AuditLog entries are not yet written to the evidence chain because the Evidence Vault is M2. That gets `TODO(T-001)` in code and a row in TRACKING §4, targeting M2.
 
-## 11. New dependencies and external services (CLAUDE.md: ask first)
+## 12. New dependencies and external services (CLAUDE.md: ask first)
 
-Nothing below has been added. All are open source; none is a paid or hosted service, except where marked.
+Nothing below has been added to the repo. Versions are the newest release at least 7 days old on 2026-10-15 (the repo's `minimumReleaseAge`). Data from the npm registry; "install script" means a `preinstall`/`install`/`postinstall` entry in the package's own manifest. Full detail and the strictDepBuilds test are in the PR 1 description and ADR-0012's dependency section.
 
-| Need                     | Proposed                                                                                               | Notes                                                                           |
-| ------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| Argon2id                 | `@node-rs/argon2` (prebuilt binaries, no install script) over `argon2` (node-gyp, needs `allowBuilds`) | Native code either way. Prebuilt avoids a build script under `strictDepBuilds`. |
-| TOTP                     | `otpauth`                                                                                              | Small, no dependencies.                                                         |
-| Cookies, headers, limits | `@fastify/cookie`, `@fastify/helmet`, `@fastify/rate-limit`                                            | Rate limit store is Valkey (already present).                                   |
-| OpenAPI                  | `fastify-type-provider-zod`, `@fastify/swagger`                                                        | ADR-0002 already names the first.                                               |
-| OpenAPI checks           | `oasdiff` and Spectral run as pinned container images in CI                                            | CI-only tools.                                                                  |
-| Integration tests        | `testcontainers`                                                                                       | See Q6.                                                                         |
-| E2E and a11y             | `@playwright/test`, `@axe-core/playwright`                                                             | Playwright downloads browser binaries in CI.                                    |
-| WebAuthn (if Q1)         | `@simplewebauthn/server` and `/browser`                                                                |                                                                                 |
-| OIDC (if Q1)             | `openid-client`                                                                                        |                                                                                 |
-| Email                    | **None proposed yet.** Q2.                                                                             | Any provider is an external service.                                            |
-| Breached-password check  | **None proposed yet.** Q3.                                                                             | The HIBP range API is an external service call.                                 |
+| Package                     | Version | Released   | Licence     | Maintainers (npm) | Install script | Needed by PR | Notes                                                                                            |
+| --------------------------- | ------- | ---------- | ----------- | ----------------- | -------------- | ------------ | ------------------------------------------------------------------------------------------------ |
+| `@node-rs/argon2`           | 2.2.2   | 2026-10-06 | MIT         | 1                 | none           | 6            | Prebuilt per-platform optional packages (13). Installed under `strictDepBuilds`, see below.      |
+| `otpauth`                   | 9.5.2   | 2026-09-03 | MIT         | 1                 | none           | 7            | TOTP/HOTP; 1 dependency.                                                                         |
+| `@fastify/cookie`           | 11.1.2  | 2026-07-15 | MIT         | 18 (Fastify org)  | none           | 6            |                                                                                                  |
+| `@fastify/helmet`           | 13.1.1  | 2026-08-19 | MIT         | 7 (Fastify org)   | none           | 5            |                                                                                                  |
+| `@fastify/rate-limit`       | 11.2.0  | 2026-07-29 | MIT         | 18 (Fastify org)  | none           | 6            | Store: Valkey (already present).                                                                 |
+| `fastify-type-provider-zod` | 7.0.0   | 2026-06-24 | MIT         | 2                 | none           | 5            | Named in ADR-0002. Peers: `@fastify/swagger >=9.5.1`, `openapi-types ^12.1.3`, `zod >=4.1.5`.    |
+| `@fastify/swagger`          | 9.9.1   | 2026-09-30 | MIT         | 8 (Fastify org)   | none           | 5            | OpenAPI generation.                                                                              |
+| `@playwright/test`          | 1.64.0  | 2026-10-07 | Apache-2.0  | 5 (Microsoft)     | none           | 12           | Browser binaries are downloaded by `playwright install` in CI, not by package install. Dev only. |
+| `@axe-core/playwright`      | 4.13.0  | 2026-08-11 | **MPL-2.0** | 5 (Deque)         | none           | 12           | Dev/test only, never shipped. MPL-2.0 is file-level copyleft: flagged for your decision.         |
 
-Every new package must also satisfy the 7-day `minimumReleaseAge`, the `allowBuilds` list and Dependabot grouping.
+Not proposed any more: `testcontainers` (Q6), `@simplewebauthn/*` and `openid-client` (Q1 deferred), HIBP (Q3). Alternative if you reject `@node-rs/argon2`: `argon2` 0.45.1 (MIT, 2026-07-21) has an `install` script (`node-gyp-build`) and would need an `allowBuilds` entry.
 
-## 12. Risks
+**`@node-rs/argon2` under `strictDepBuilds` (tested 2026-10-15):** in a scratch project that uses the repo's `pnpm-workspace.yaml` settings (`strictDepBuilds: true`, `minimumReleaseAge`, `trustPolicy`, `blockExoticSubdeps`) and no `allowBuilds` entry, `pnpm add --save-exact @node-rs/argon2@2.2.2` succeeded with no build-script prompt. It installed the platform package and an Argon2id hash/verify round trip worked on glibc (host) and on musl (`node:24.21.0-alpine3.24` with pnpm 12.6.0, the base image our Dockerfile uses; it resolved `@node-rs/argon2-linux-x64-musl`). Not yet tested: arm64 images.
 
-- **We own security-critical code** (sessions, MFA). Mitigation: libraries for all primitives, the failure-path tests above, and an ASVS L2 mapping filled in as we go.
+**Other new things needing approval:**
+
+| Item                           | Kind                            | Notes                                                                                                                             |
+| ------------------------------ | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `oasdiff`                      | **New CI tool** (PR 5)          | Breaking-change check on `docs/api/openapi.json` (ADR-0002). Run as a pinned container image. Needs your approval.                |
+| Spectral                       | **New CI tool** (PR 5)          | OpenAPI lint (descriptions required, ADR-0002). Run as a pinned container image. Needs your approval.                             |
+| Mailpit                        | Dev-only compose service (PR 6) | Approved by you (Q2). Pinned by digest, bound to 127.0.0.1.                                                                       |
+| Offline breached-password list | Data file (PR 6)                | Source and licence not yet chosen; target a modest top-N list (a few MB). I will bring candidates and licences before adding any. |
+| `prysm_test_admin` role        | Dev/CI database role (PR 2)     | `CREATEDB` for the test harness; dev and CI only (§10).                                                                           |
+
+## 13. Risks
+
+- **We own security-critical code** (sessions, MFA). Mitigation: libraries for all primitives (ADR-0012), the failure-path tests above, and an ASVS L2 mapping.
 - **Global tables are outside RLS.** Mitigation: the allowlist test, narrow grants, and no tenant data in them.
 - **Timing and enumeration leaks** on login and key lookup. Mitigation: dummy hashing and tests that compare response shapes.
-- **Local Docker on this machine can't stop running containers** ("permission denied" from the snap Docker daemon), which could break Testcontainers cleanup locally. CI is unaffected. See Q6.
-- **Schedule risk:** the UI plus Playwright is the largest unknown. PRs 10 and 11 stay last so everything before them is useful on its own.
+- **Local Docker on this machine can't stop running containers** (see §10). The harness avoids container control, so this no longer affects tests. It still blocks `infra:down` and `stack:up` rebuilds until the daemon is fixed.
+- **Template database cloning needs no open connections to the template**, and `CREATEDB` for the test role. Mitigation: the template is never connected to except by migration and by `CREATE DATABASE`.
+- **Schedule risk:** the UI plus Playwright is the largest unknown. PRs 10 to 13 stay last so everything before them is useful on its own.
 
-## 13. Open questions for you
+## 14. Decisions (owner, 2026-10-15) and what is still pending
 
-1. **Scope:** are I-03 (OIDC) and WebAuthn (rest of I-02) in M1 or deferred? TRACKING says M1, but your scope list omitted them. I'd defer both to follow-up PRs after the gate.
-2. **Email:** signup verification and password reset need to send mail. No provider is approved. Options: (a) skip email verification and reset in M1, record it as a registered TODO, and add a `MailSender` interface with a dev adapter; (b) add a dev-only Mailpit container to compose (open source, local). I recommend (b) plus the interface, with a real provider decided at M12.
-3. **Breached passwords:** HIBP k-anonymity API (external, free) or a bundled offline list (large, self-hosted friendly)? THREAT_MODEL mentions both. I'd ship the offline option first because "no external services" is your standing rule.
-4. **Dependencies:** do you approve the packages in §11? Any you'd swap? Should I add a UI component library, or keep plain HTML for M1?
-5. **New packages:** may I add `packages/crypto` (and `authz` as a separate package, or keep it inside `core-types`)? CLAUDE.md's layout doesn't list them.
-6. **Testcontainers vs the compose stack:** TRACKING F-22 says Testcontainers, while M0 tests use the compose stack. Testcontainers gives clean isolation per suite but needs Docker socket access and its reaper container. On this machine the snap Docker can't stop running containers. Do you want Testcontainers as written, or the existing compose stack plus per-test schemas?
-7. **ADR-0012:** do you agree with "thin in-house layer on vetted primitives" over embedding an auth library?
-8. **Session lifetimes:** is 30 min idle and 12 h absolute acceptable?
-9. **MFA policy:** mandatory for every account from first login (my recommendation), or only for Owner and Admin in M1?
-10. **API key lookup:** embed a tenant handle in the key (my recommendation) or use a `SECURITY DEFINER` lookup function?
-11. **Multi-tenant users:** the schema lets one user belong to several tenants (as `memberships` implies). Should M1's UI include a tenant switcher, or assume one tenant per user and add the switcher later?
-12. **Invitations:** adding other users to a tenant isn't needed for the gate. Include an invite flow (needs email, Q2) in M1, or later?
+| Q   | Decision                                                                                                                |
+| --- | ----------------------------------------------------------------------------------------------------------------------- |
+| Q1  | OIDC and WebAuthn deferred to follow-ups                                                                                |
+| Q2  | `MailSender` interface + dev-only Mailpit compose service, approved                                                     |
+| Q3  | Offline breached-password list, modest size, no HIBP                                                                    |
+| Q4  | **Pending.** Package details in §12. Waiting for your approval                                                          |
+| Q5  | `packages/crypto` yes; `authz` inside `core-types`; CLAUDE.md layout updated in PR 1                                    |
+| Q6  | One harness for local and CI, per-suite database from a template; no Testcontainers; wording change pending             |
+| Q7  | **Pending.** ADR-0012 drafted as Proposed                                                                               |
+| Q8  | 30 min idle, 12 h absolute                                                                                              |
+| Q9  | MFA mandatory for every account                                                                                         |
+| Q10 | Embed the tenant in the key; lookup by key id inside `withTenant`; constant-time hash compare; never `SECURITY DEFINER` |
+| Q11 | One tenant per user in the UI for now; schema allows many                                                               |
+| Q12 | Invitations later                                                                                                       |
