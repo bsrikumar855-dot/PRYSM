@@ -214,6 +214,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | K-05 | Azure                                                                  | M8b | [ ]    |
 | K-06 | Jira, Linear                                                           | M8b | [ ]    |
 | K-07 | Encrypted credentials; least-privilege scopes documented per collector | M8  | [ ]    |
+| K-08 | Webhook secret rotation: old-secret grace window + runbook (§2.13)     | M8  | [ ]    |
 
 ### 2.10 Reporting & Auditor Portal (§6.8)
 
@@ -242,6 +243,12 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | L-04 | Docs site: API reference, self-hosting guide, customer integration guide  | M10 (integration) / M11 (self-host) / M12 (site) | [ ]    |
 | L-05 | Runbooks: incident, key rotation, restore from backup, tenant offboarding | M2 (key rotation) / M11 / M12                    | [ ]    |
 | L-06 | SLOs + alerting live                                                      | M12                                              | [ ]    |
+
+### 2.13 Reference patterns (read-only sources)
+
+Ignition (MIT, github.com/suchitchopade3110-arch/Ignition) is a read-only reference. PRYSM is Apache-2.0, so no code is copied and nothing is added as a dependency; only the patterns below are reimplemented. `NOTICE` is untouched.
+
+- **K-08** (webhook secret rotation): pattern from Ignition's webhook-secret-rotation tests and `docs/SECRET_ROTATION.md`. Accept the new or the previous secret for a bounded window, then drop the old one. Complements THREAT_MODEL §3.3.
 
 ## 3. Scope changes log
 
