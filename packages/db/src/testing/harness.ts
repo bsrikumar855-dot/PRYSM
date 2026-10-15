@@ -53,9 +53,14 @@ async function dropDatabase(admin: pg.Client, name: string): Promise<void> {
   }
 }
 
+/** Postgres error code for "database is being accessed by other users". */
+const OBJECT_IN_USE = '55006';
+
 /**
- * Drops harness databases older than `maxAgeMs` (left behind by a crashed run) and returns their names.
- * Only names that start with the harness prefix and carry a parseable timestamp are ever touched.
+ * Drops harness databases older than `maxAgeMs` (left behind by a crashed run) and returns the names it
+ * dropped. A database with any open connection is skipped, never forced: it may belong to a run that is
+ * still going (a slow CI job, another developer's suite on a shared server). Only names that start with
+ * the harness prefix and carry a parseable timestamp are ever touched.
  */
 export async function sweepStaleTestDatabases(maxAgeMs = SWEEP_AFTER_MS, nowMs = Date.now()): Promise<string[]> {
   return withAdmin(async (admin) => {
@@ -66,8 +71,13 @@ export async function sweepStaleTestDatabases(maxAgeMs = SWEEP_AFTER_MS, nowMs =
     for (const { datname } of rows) {
       const createdAt = testDatabaseCreatedAtMs(datname);
       if (createdAt === null || nowMs - createdAt < maxAgeMs) continue;
-      await dropDatabase(admin, datname);
-      dropped.push(datname);
+      try {
+        // No FORCE: Postgres refuses while anyone is connected, which is exactly the "still in use" check.
+        await admin.query(`DROP DATABASE ${admin.escapeIdentifier(datname)}`);
+        dropped.push(datname);
+      } catch (error) {
+        if ((error as { code?: string }).code !== OBJECT_IN_USE) throw error;
+      }
     }
     return dropped;
   });

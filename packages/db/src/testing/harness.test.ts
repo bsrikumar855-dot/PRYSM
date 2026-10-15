@@ -72,6 +72,25 @@ describe('template-database harness', () => {
     await db.drop();
   });
 
+  it('skips an old database that still has an open connection, then drops it once idle', async () => {
+    const admin = new pg.Client({ connectionString: process.env['DATABASE_URL_TEST_ADMIN'] });
+    await admin.connect();
+    const busy = testDatabaseName('sweep_busy', Date.now() - 2 * 3600_000, 'cccccc');
+    try {
+      await admin.query(`CREATE DATABASE ${admin.escapeIdentifier(busy)} TEMPLATE ${TEMPLATE_DATABASE}`);
+      const open = new pg.Client({ connectionString: withDatabase(process.env['DATABASE_URL_OWNER'] ?? '', busy) });
+      await open.connect();
+      expect(await sweepStaleTestDatabases()).not.toContain(busy);
+      const stillThere = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [busy]);
+      expect(stillThere.rowCount).toBe(1);
+      await open.end();
+      expect(await sweepStaleTestDatabases()).toContain(busy);
+    } finally {
+      await admin.query(`DROP DATABASE IF EXISTS ${admin.escapeIdentifier(busy)} WITH (FORCE)`);
+      await admin.end();
+    }
+  });
+
   it('sweeps only old harness databases', async () => {
     const admin = new pg.Client({ connectionString: process.env['DATABASE_URL_TEST_ADMIN'] });
     await admin.connect();
