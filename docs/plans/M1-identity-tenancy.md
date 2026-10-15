@@ -100,6 +100,8 @@ CREATE POLICY tenant_isolation ON memberships
 
 **Audit log immutability:** a `BEFORE UPDATE OR DELETE` trigger raises an exception for every role (no exception path in M1, since retention is M2), plus the grant above. Both are tested.
 
+**As built in PR 3 (differs from the sketch above in one place):** the policies call `(SELECT public.app_tenant_id())` instead of `current_setting('app.tenant_id', true)::uuid`. The helper returns NULL for a missing, empty or malformed setting; the bare cast raises on `''`, which is what a pooled connection reports after any transaction that used `set_config(..., true)`. Semantics are otherwise those of ADR-0007 (no tenant means no rows and failed writes), the helper is `SECURITY INVOKER`, and `(SELECT ...)` makes Postgres evaluate it once per statement.
+
 ### 3.5 `withTenant`
 
 `withTenant(tenantId, fn)` in `packages/db`: opens a transaction, runs `SELECT set_config('app.tenant_id', $1, true)`, and passes a transaction-scoped client to `fn`. It is the only exported way to reach tenant tables; the raw pool is not exported. Two lint rules (ESLint, in the repo's flat config):
@@ -269,6 +271,8 @@ Small, ordered PRs, each branching from a green `main`. "Verify" is the command 
 | 13  | M1 gate: `scripts/verify-m1.mjs`, CI job for the cross-tenant suite and e2e, runbook, TRACKING rows flipped with linked tests, threat-model revision                                                                                                                                                                          | `pnpm verify:m1`, then a green CI run                             |
 
 Deferred follow-ups (not in the 13): WebAuthn, OIDC SSO, invitations, tenant switcher UI.
+
+**Definition of done additions (owner, 2026-10-15):** PR 6 is not done until ADR-0013 test **G8** (the Valkey key-prefix lint: only `t:{tenant_id}:` and `g:`) exists and passes; PR 9 is not done until test **G7** (API-key lookup: wrong tenant part, wrong secret and unknown key id give the same response and similar timing) exists and passes. Both are registered in TRACKING (F-48, F-47). PR 3 implements G1 to G6 and G9; its migration creates only `users` as a global table, and each later PR adds its global tables and allowlist entries, with reasons, in the same commit.
 
 TRACKING rows flip to `[x]` only in the PR that lands the proving test, each linked.
 
