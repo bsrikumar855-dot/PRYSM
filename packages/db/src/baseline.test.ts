@@ -1,13 +1,23 @@
 import pg from 'pg';
-import { afterAll, describe, expect, it } from 'vitest';
-import { createPool, findRlsGaps, ping } from './index.ts';
-import { requiredUrl } from './test-env.ts';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createPool, findRlsGaps, ping, type Pool } from './index.ts';
+import { createTestDatabase, type TestDatabase } from './testing/index.ts';
 
-const owner = createPool({ connectionString: requiredUrl('DATABASE_URL_OWNER'), applicationName: 'prysm-db-test' });
 const RUNTIME_ROLES = ['prysm_app', 'prysm_platform', 'prysm_gateway_outbox'];
+
+// Runs against a private clone of the migrated template, so the checks below hold for what `db:migrate`
+// produces and no other suite can see these tables.
+let db: TestDatabase;
+let owner: Pool;
+
+beforeAll(async () => {
+  db = await createTestDatabase({ suite: 'baseline' });
+  owner = createPool({ connectionString: db.ownerUrl, applicationName: 'prysm-db-test' });
+});
 
 afterAll(async () => {
   await owner.end();
+  await db.drop();
 });
 
 describe('database baseline (ADR-0007)', () => {
@@ -55,7 +65,7 @@ describe('database baseline (ADR-0007)', () => {
   });
 
   it('the app role really cannot create a table', async () => {
-    const app = new pg.Client({ connectionString: requiredUrl('DATABASE_URL_APP') });
+    const app = new pg.Client({ connectionString: db.appUrl });
     await app.connect();
     try {
       await expect(app.query('CREATE TABLE public.should_fail (id int)')).rejects.toThrow(/permission denied/);
