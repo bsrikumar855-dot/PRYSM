@@ -8,7 +8,7 @@ ADR-0007 puts `tenant_id` and RLS on every tenant-scoped table, and prefixes eve
 
 ## Decision
 
-1. **Global tables are allowed, from a reviewed allowlist.** In M1 the allowlist is exactly `users`, `user_mfa_factors`, `mfa_recovery_codes`, `sessions` and `auth_events`. It lives in code in `packages/db` as a map from table name to a one-line reason, and a code-owner review plus a line in the PR's threat-model delta is needed to change it.
+1. **Global tables are allowed, from a reviewed allowlist.** In M1 the allowlist is exactly `users`, `user_mfa_factors`, `mfa_recovery_codes`, `sessions` and `auth_events`. It lives in code in `packages/db` as a map from table name to a one-line reason, and a code-owner review plus a line in the PR's threat-model delta is needed to change it. _Five at M1 completion; the allowlist grows with each migration: it holds only tables that exist, and a PR that adds a global table adds its entry and reason in the same commit._
 2. **Global tables hold identity, never tenant data.** No prompt, payload, policy, evidence or customer-configuration data goes in them. Secrets in them (MFA seeds) are field-encrypted with the auth DEK, not a tenant DEK.
 3. **`tenants` is covered by RLS on `id`.** The coverage test checks it by name because it has no `tenant_id` column.
 4. **Signup needs no privileged role.** The application picks the new tenant's UUID and inserts the tenant rows inside `withTenant(newId)`. `WITH CHECK` only allows that one id.
