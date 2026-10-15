@@ -30,7 +30,9 @@ jobs:
       - run: pnpm test:scripts
       - run: pnpm turbo run lint
       - name: Conventional commits
-        if: github.event_name == 'pull_request'
+        # Dependabot's fixed titles ("chore(deps): Bump ...") violate subject-case and can't be configured; rules stay
+        # strict for every other author. Dependabot PRs are still reviewed and gated by all other checks.
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
         run: pnpm exec commitlint --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
 
   typecheck:
