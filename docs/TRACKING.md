@@ -277,6 +277,7 @@ Ignition (MIT, github.com/suchitchopade3110-arch/Ignition) is a read-only refere
 | 2026-09-24 | SaaS evidence storage = cloud-native Object Lock; local store is dev/self-hosted only; conformance preflight for self-hosted (F-39, M11)                          | Owner       |
 | 2026-10-15 | F-22: Testcontainers replaced by one local+CI harness (template DBs); it cannot stop or reap containers on the owner's Docker                                     | Owner       |
 | 2026-10-15 | M1: OIDC (I-03) and WebAuthn (part of I-02) deferred past the gate; packages/crypto added; authz lives in core-types                                              | Owner       |
+| 2026-10-15 | Ignition (MIT) is a read-only pattern source for K-08, D-08, R-09, A-11; no code copied. Not taken: Groq, Supabase, Python auth/session code, SSE manager, UI     | Owner       |
 
 ## 3a. Open questions (decide at the named milestone)
 
