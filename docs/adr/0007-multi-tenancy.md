@@ -1,6 +1,6 @@
 # ADR-0007: Multi-tenancy strategy
 
-Status: Accepted · 2026-09-24
+Status: Accepted · 2026-09-24. Amended by [ADR-0013](0013-global-identity-tables.md) (global identity tables, the `g:` Valkey prefix, `withGlobal`, and the API-key lookup exception).
 
 ## Context
 

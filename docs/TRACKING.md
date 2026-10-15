@@ -56,7 +56,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | F-19  | CSP + secure headers (api, web)                                                                                                                                                                                                                                                                                                                        | M1                                                                             | [ ]                                                                                                                                        |
 | F-20  | SSRF-safe egress client shared by collectors and URL fetch                                                                                                                                                                                                                                                                                             | M6                                                                             | [ ]                                                                                                                                        |
 | F-21  | Input validation at every boundary (zod/pydantic), with a lint rule against unvalidated route handlers                                                                                                                                                                                                                                                 | M0                                                                             | [~] zod/pydantic config validation at boot (`config.test.ts`); route-validation lint rule [→M1] with the first input-taking routes         |
-| F-22  | Integration tests with Testcontainers (Postgres, Valkey, SeaweedFS)                                                                                                                                                                                                                                                                                    | M1                                                                             | [ ]                                                                                                                                        |
+| F-22  | Integration tests against the compose/CI Postgres, Valkey and SeaweedFS via one harness for local and CI: per-suite database cloned from a migrated template, unique Valkey and bucket prefixes. No Testcontainers (wording approved 2026-10-15)                                                                                                       | M1                                                                             | [ ]                                                                                                                                        |
 | F-23  | Playwright e2e + axe accessibility checks on critical flows                                                                                                                                                                                                                                                                                            | M1 (first UI) → M9                                                             | [ ]                                                                                                                                        |
 | F-24  | WCAG 2.1 AA audit of console                                                                                                                                                                                                                                                                                                                           | M9                                                                             | [ ]                                                                                                                                        |
 | F-25  | API p95 < 300 ms standard reads (perf test in CI)                                                                                                                                                                                                                                                                                                      | M9                                                                             | [ ]                                                                                                                                        |
@@ -137,6 +137,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | D-05 | Normalization (NFKC, zero-width stripping) + adversarial corpus; precision/recall thresholds in CI                                                                                                                               | M3                      | [ ]    |
 | D-06 | Linear-time guarantees: regex fuzzing; RE2 for customer patterns; declared max span per detector                                                                                                                                 | M3                      | [ ]    |
 | D-07 | Forbidden-content categories (deterministic lexicons + async LLM classifier)                                                                                                                                                     | M4 (lexicon) / M6 (LLM) | [ ]    |
+| D-08 | Golden-fixture eval harness: labelled fixtures, precision/recall/F1 gate, non-blocking CI job for live-model parts (Ignition pattern, see §2.13)                                                                                 | M3 / M6                 | [ ]    |
 
 ### 2.5 AI Gateway (§6.3)
 
@@ -174,6 +175,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | A-08 | Notifications: email + signed webhooks                                                               | M5                                      | [ ]    |
 | A-09 | Notifications: Slack, Microsoft Teams                                                                | M10                                     | [ ]    |
 | A-10 | Deploy/commit linkage for findings                                                                   | M8 (GitHub collector)                   | [ ]    |
+| A-11 | Reviewer-outcome history per finding pattern; no severity demotion without owner approval (§2.13)    | M6                                      | [ ]    |
 
 ### 2.7 Rule Intelligence (§6.1)
 
@@ -187,6 +189,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | R-06 | Document versioning: detect affected obligations/controls, open review items                          | M6  | [ ]    |
 | R-07 | Eval harness + golden dataset (extraction P/R, mapping accuracy) with CI thresholds                   | M6  | [ ]    |
 | R-08 | Tenant controls for PRYSM's LLM use (provider choice, no-external-LLM mode)                           | M6  | [ ]    |
+| R-09 | Post-LLM verifier: exact-text citation re-check + verified/contextual label (Ignition pattern, §2.13) | M6  | [ ]    |
 
 ### 2.8 Control Library & Content (§3, §6.2)
 
@@ -214,6 +217,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | K-05 | Azure                                                                  | M8b | [ ]    |
 | K-06 | Jira, Linear                                                           | M8b | [ ]    |
 | K-07 | Encrypted credentials; least-privilege scopes documented per collector | M8  | [ ]    |
+| K-08 | Webhook secret rotation: old-secret grace window + runbook (§2.13)     | M8  | [ ]    |
 
 ### 2.10 Reporting & Auditor Portal (§6.8)
 
@@ -243,6 +247,15 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | L-05 | Runbooks: incident, key rotation, restore from backup, tenant offboarding | M2 (key rotation) / M11 / M12                    | [ ]    |
 | L-06 | SLOs + alerting live                                                      | M12                                              | [ ]    |
 
+### 2.13 Reference patterns (read-only sources)
+
+Ignition (MIT, github.com/suchitchopade3110-arch/Ignition) is a read-only reference. PRYSM is Apache-2.0, so no code is copied and nothing is added as a dependency; only the patterns below are reimplemented. `NOTICE` is untouched.
+
+- **K-08** (webhook secret rotation): pattern from Ignition's webhook-secret-rotation tests and `docs/SECRET_ROTATION.md`. Accept the new or the previous secret for a bounded window, then drop the old one. Complements THREAT_MODEL §3.3.
+- **D-08** (golden-fixture eval): pattern from Ignition's golden eval script and scoring tests. Hand-labelled fixtures, precision, recall and F1 per fixture and overall, a minimum-F1 gate. A part that needs a live model runs as a non-blocking CI job; the deterministic detector corpus can block (D-05). Related to D-05 and R-07, not a duplicate.
+- **R-09** (post-LLM verifier): pattern from Ignition's post-LLM verification step. After an LLM proposes a finding or mapping, code re-checks the cited span by exact-text match, and the finding is labelled `verified` or `contextual`. Consistent with P-06: at or above threshold it is still `pending_confirmation` only and never passes or closes a control. The label informs the human reviewer and does not replace them. Extends R-04.
+- **A-11** (reviewer-outcome tracking): pattern from Ignition's per-pattern approve/reject history. Used for reviewer-agreement metrics (A-07) and to show a reviewer a pattern's history. **No severity demotion, suppression or auto-dismissal from this data without the owner's explicit design approval.** Ignition's automatic severity demotion is deliberately not taken.
+
 ## 3. Scope changes log
 
 | Date       | Change                                                                                                                                                            | Approved by |
@@ -262,6 +275,9 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | 2026-09-24 | M0 plan approved. Go toolchain/CI moved to M2; TypeScript pinned to 6.0.3 (typescript-eslint supports < 6.1); pnpm 12 (ADR-0001 amendment in M0)                  | Owner       |
 | 2026-09-24 | Cosign keyless + GHCR push on `main`; Dependabot with grouped/cooldown version updates and immediate security updates                                             | Owner       |
 | 2026-09-24 | SaaS evidence storage = cloud-native Object Lock; local store is dev/self-hosted only; conformance preflight for self-hosted (F-39, M11)                          | Owner       |
+| 2026-10-15 | F-22: Testcontainers replaced by one local+CI harness (template DBs); it cannot stop or reap containers on the owner's Docker                                     | Owner       |
+| 2026-10-15 | M1: OIDC (I-03) and WebAuthn (part of I-02) deferred past the gate; packages/crypto added; authz lives in core-types                                              | Owner       |
+| 2026-10-15 | Ignition (MIT) is a read-only pattern source for K-08, D-08, R-09, A-11; no code copied. Not taken: Groq, Supabase, Python auth/session code, SSE manager, UI     | Owner       |
 
 ## 3a. Open questions (decide at the named milestone)
 
