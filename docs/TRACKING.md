@@ -175,6 +175,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | A-08 | Notifications: email + signed webhooks                                                               | M5                                      | [ ]    |
 | A-09 | Notifications: Slack, Microsoft Teams                                                                | M10                                     | [ ]    |
 | A-10 | Deploy/commit linkage for findings                                                                   | M8 (GitHub collector)                   | [ ]    |
+| A-11 | Reviewer-outcome history per finding pattern; no severity demotion without owner approval (§2.13)    | M6                                      | [ ]    |
 
 ### 2.7 Rule Intelligence (§6.1)
 
@@ -253,6 +254,7 @@ Ignition (MIT, github.com/suchitchopade3110-arch/Ignition) is a read-only refere
 - **K-08** (webhook secret rotation): pattern from Ignition's webhook-secret-rotation tests and `docs/SECRET_ROTATION.md`. Accept the new or the previous secret for a bounded window, then drop the old one. Complements THREAT_MODEL §3.3.
 - **D-08** (golden-fixture eval): pattern from Ignition's golden eval script and scoring tests. Hand-labelled fixtures, precision, recall and F1 per fixture and overall, a minimum-F1 gate. A part that needs a live model runs as a non-blocking CI job; the deterministic detector corpus can block (D-05). Related to D-05 and R-07, not a duplicate.
 - **R-09** (post-LLM verifier): pattern from Ignition's post-LLM verification step. After an LLM proposes a finding or mapping, code re-checks the cited span by exact-text match, and the finding is labelled `verified` or `contextual`. Consistent with P-06: at or above threshold it is still `pending_confirmation` only and never passes or closes a control. The label informs the human reviewer and does not replace them. Extends R-04.
+- **A-11** (reviewer-outcome tracking): pattern from Ignition's per-pattern approve/reject history. Used for reviewer-agreement metrics (A-07) and to show a reviewer a pattern's history. **No severity demotion, suppression or auto-dismissal from this data without the owner's explicit design approval.** Ignition's automatic severity demotion is deliberately not taken.
 
 ## 3. Scope changes log
 
