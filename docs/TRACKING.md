@@ -137,6 +137,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 | D-05 | Normalization (NFKC, zero-width stripping) + adversarial corpus; precision/recall thresholds in CI                                                                                                                               | M3                      | [ ]    |
 | D-06 | Linear-time guarantees: regex fuzzing; RE2 for customer patterns; declared max span per detector                                                                                                                                 | M3                      | [ ]    |
 | D-07 | Forbidden-content categories (deterministic lexicons + async LLM classifier)                                                                                                                                                     | M4 (lexicon) / M6 (LLM) | [ ]    |
+| D-08 | Golden-fixture eval harness: labelled fixtures, precision/recall/F1 gate, non-blocking CI job for live-model parts (Ignition pattern, see §2.13)                                                                                 | M3 / M6                 | [ ]    |
 
 ### 2.5 AI Gateway (§6.3)
 
@@ -249,6 +250,7 @@ Rules: a requirement is marked `[x]` only once the PR links the test that proves
 Ignition (MIT, github.com/suchitchopade3110-arch/Ignition) is a read-only reference. PRYSM is Apache-2.0, so no code is copied and nothing is added as a dependency; only the patterns below are reimplemented. `NOTICE` is untouched.
 
 - **K-08** (webhook secret rotation): pattern from Ignition's webhook-secret-rotation tests and `docs/SECRET_ROTATION.md`. Accept the new or the previous secret for a bounded window, then drop the old one. Complements THREAT_MODEL §3.3.
+- **D-08** (golden-fixture eval): pattern from Ignition's golden eval script and scoring tests. Hand-labelled fixtures, precision, recall and F1 per fixture and overall, a minimum-F1 gate. A part that needs a live model runs as a non-blocking CI job; the deterministic detector corpus can block (D-05). Related to D-05 and R-07, not a duplicate.
 
 ## 3. Scope changes log
 
