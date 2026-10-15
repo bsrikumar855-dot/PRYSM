@@ -15,6 +15,13 @@
       "when": 1792054759160,
       "tag": "0001_identity_and_tenancy_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792054795254,
+      "tag": "0002_rls_and_grants",
+      "breakpoints": true
     }
   ]
 }
