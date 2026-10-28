@@ -1,0 +1,49 @@
+# DEMO-ONLY (TODO(T-001)). Synthetic policy for the hackathon demo, not a regulation and not legal advice.
+# Every rule must cite a `source`. The sources below are placeholder ids for this demo. The operator replaces
+# them with the real document ids and versions they supply; the code never invents a citation.
+version: 1
+name: demo-support-agent
+rules:
+  - id: allow-lookup-order
+    source: 'demo-policy:DEMO-001'
+    description: Reading an order record is a read-only action.
+    tool: lookup_order
+    decision: allow
+
+  - id: allow-small-refund
+    source: 'demo-policy:DEMO-002'
+    description: Refunds up to the demo limit go through.
+    tool: refund_payment
+    when:
+      - { path: amount_inr, op: lte, value: 5000 }
+    decision: allow
+
+  - id: approve-large-refund
+    source: 'demo-policy:DEMO-003'
+    description: Refunds above the demo limit need a human to approve them.
+    tool: refund_payment
+    when:
+      - { path: amount_inr, op: gt, value: 5000 }
+    decision: require_approval
+
+  - id: deny-customer-export
+    source: 'demo-policy:DEMO-004'
+    description: Bulk export of customer records is never done by the agent.
+    tool: export_customer_data
+    decision: deny
+
+  - id: allow-internal-email
+    source: 'demo-policy:DEMO-005'
+    description: The agent may send email to internal addresses only.
+    tool: send_email
+    when:
+      - { path: audience, op: eq, value: internal }
+    decision: allow
+
+  - id: approve-external-email
+    source: 'demo-policy:DEMO-006'
+    description: Email to anyone outside the company needs approval.
+    tool: send_email
+    when:
+      - { path: audience, op: neq, value: internal }
+    decision: require_approval
