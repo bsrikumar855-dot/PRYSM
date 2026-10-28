@@ -74,7 +74,7 @@ pnpm check                          # format, wording + TODO checks, lint, typec
 
 A two-day slice under [`demo/`](demo/README.md): redaction, a deterministic policy that decides model tool requests
 (never the model), human approvals, and a hash-chained evidence log with an external anchor you can tamper with on purpose
-to watch verification fail. It runs fully offline in replay mode.
+to watch verification fail. Replay mode needs no API key.
 
 ```bash
 pnpm demo:start                                  # Postgres + migrate + seed + dashboard at http://127.0.0.1:4300

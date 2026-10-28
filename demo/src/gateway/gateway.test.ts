@@ -16,6 +16,7 @@ import {
   type ChatResult,
 } from '../adapter/index.ts';
 import { DEMO_TOOLS } from '../adapter/tools.ts';
+import { verhoeffCheckDigit } from '../redaction/verhoeff.ts';
 import { applyEvidenceMigration } from '../db/migrate.ts';
 import { readAnchor } from '../evidence/anchor.ts';
 import { demoReset, readChain } from '../evidence/store.ts';
@@ -261,18 +262,19 @@ describe('redaction', () => {
   const email = 'priya.nair@example.test';
   const pan = 'ABCPE1234F';
   const phone = '+91 98765 43210';
+  const aadhaar = `23456789012${String(verhoeffCheckDigit('23456789012'))}`;
 
   it('the model and the evidence log never see raw PII, and the response reports counts only', async () => {
-    const out = await chat(`Look up order ORD-1001 for ${email}, PAN ${pan}, phone ${phone}`);
+    const out = await chat(`Look up order ORD-1001 for ${email}, PAN ${pan}, phone ${phone}, Aadhaar ${aadhaar}`);
     const sent = JSON.stringify(seenByModel);
-    for (const pii of [email, pan, phone, '98765 43210']) expect(sent).not.toContain(pii);
+    for (const pii of [email, pan, phone, '98765 43210', aadhaar]) expect(sent).not.toContain(pii);
     expect(sent).toContain('[REDACTED:EMAIL]');
     const everything = JSON.stringify(await docs()) + JSON.stringify(out.body);
-    for (const pii of [email, pan, phone, '98765 43210']) expect(everything).not.toContain(pii);
-    expect(out.body['prysm'].redaction).toEqual({ aadhaar: 0, pan: 1, email: 1, phone: 1 });
+    for (const pii of [email, pan, phone, '98765 43210', aadhaar]) expect(everything).not.toContain(pii);
+    expect(out.body['prysm'].redaction).toEqual({ aadhaar: 1, pan: 1, email: 1, phone: 1 });
     expect((await docs())[0]?.data).toMatchObject({
-      redaction_total: 3,
-      redaction_counts: { pan: 1, email: 1, phone: 1, aadhaar: 0 },
+      redaction_total: 4,
+      redaction_counts: { pan: 1, email: 1, phone: 1, aadhaar: 1 },
     });
   });
 

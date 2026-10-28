@@ -45,8 +45,8 @@
       <section class="panel wide" aria-labelledby="feed-h">
         <h2 id="feed-h">Live decision feed</h2>
         <p class="hint">
-          Evidence records as they are written, newest first. Prompts are redacted before they reach the model or this
-          log; only counts are shown.
+          Evidence records as they are written, newest first. Pattern-based redaction (email, phone, PAN, Aadhaar) is
+          applied before the model call and before this log; only counts are shown.
         </p>
         <ol id="feed" class="feed"></ol>
       </section>
@@ -81,8 +81,9 @@
 
     <footer>
       <p>
-        Decisions are made by the policy file, or by a named person. A model proposes tool requests; it never decides.
-        This page reports control status and evidence of what happened; it is not legal advice.
+        Decisions are made by the policy file, or by a person whose name is a free-text label. A model proposes tool
+        requests; it never decides. This page reports control status and evidence of what happened; it is not legal
+        advice.
       </p>
     </footer>
     <script src="/app.js"></script>
