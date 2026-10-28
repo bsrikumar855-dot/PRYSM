@@ -14,7 +14,8 @@
     "agent": "node src/agent/run.ts",
     "verify": "node src/cli/verify.ts",
     "export": "node src/cli/export.ts",
-    "live-check": "node --env-file-if-exists=../.env.demo scripts/verify-meta-live.ts"
+    "live-check": "node --env-file-if-exists=../.env.demo scripts/verify-meta-live.ts",
+    "reset": "node src/cli/reset.ts"
   },
   "dependencies": {
     "pg": "8.23.0",

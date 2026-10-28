@@ -61,7 +61,7 @@ try {
   const { verify, anchor } = await verifyAndAnchor(app, DEFAULT_ANCHOR_PATH, readAnchor(DEFAULT_ANCHOR_PATH));
   if (!verify.ok) {
     process.stdout.write(
-      `[demo:up] NOT READY: the stored chain fails verification at index ${String(verify.index)} (${verify.reason}). Reset it from the dashboard, or truncate the table as the owner.\n`,
+      `[demo:up] NOT READY: the stored chain fails verification at index ${String(verify.index)} (${verify.reason}). Start over with pnpm demo:reset (or the Reset button in the dashboard).\n`,
     );
     process.exit(1);
   }

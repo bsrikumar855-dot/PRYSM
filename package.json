@@ -29,7 +29,9 @@
     "demo:agent": "pnpm --filter @prysm/demo run agent",
     "demo:verify": "pnpm --filter @prysm/demo run verify",
     "demo:export": "pnpm --filter @prysm/demo run export",
-    "demo:live-check": "pnpm --filter @prysm/demo run live-check"
+    "demo:live-check": "pnpm --filter @prysm/demo run live-check",
+    "demo:start": "pnpm demo:up && pnpm demo:serve",
+    "demo:reset": "pnpm --filter @prysm/demo run reset"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
