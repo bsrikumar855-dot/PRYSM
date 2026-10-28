@@ -21,9 +21,9 @@ export interface TenantTx {
 }
 
 /**
- * Client for the global identity tables (ADR-0013) inside `withGlobal`. No tenant is set, so Postgres RLS
- * returns nothing for a tenant table and rejects writes to it; as defence in depth, any statement that names one
- * is also refused before it is sent.
+ * Client for the global identity tables (ADR-0013) inside `withGlobal`. It runs as `prysm_identity`, a role with no
+ * privilege on any tenant table, so Postgres rejects a statement that touches one; as defence in depth, any
+ * statement that names one is also refused before it is sent.
  */
 export interface GlobalTx {
   query<R extends object = Record<string, unknown>>(
@@ -42,13 +42,15 @@ export interface Db {
    */
   withTenant<T>(tenantId: string, fn: (tx: TenantTx) => Promise<T>): Promise<T>;
   /**
-   * Runs `fn` in a transaction with no tenant, for the global identity tables on the ADR-0013 allowlist
-   * (users and, as they arrive, sessions and MFA tables). A statement that names a tenant table is refused
-   * before it is sent; use `withTenant` for those.
+   * Runs `fn` in a transaction with no tenant, on the identity connection (`prysm_identity`), for the global
+   * identity tables on the ADR-0013 allowlist (users and, as they arrive, sessions and MFA tables). A statement
+   * that names a tenant table is refused before it is sent; use `withTenant` for those.
    *
    * That refusal is a text match and is **defence in depth only**: unicode-escaped identifiers or dynamic
-   * SQL can walk around it. The control is Postgres RLS: with no tenant set, every tenant table returns no
-   * rows and rejects writes (tests in `with-global-bypass.test.ts` run the statements without the guard).
+   * SQL can walk around it. The controls are Postgres privileges and RLS: `prysm_identity` holds no privilege on any
+   * tenant table, so a statement that reaches one fails with "permission denied" (tests in
+   * `with-global-bypass.test.ts` run the statements without the guard). Throws if the `Db` was built without an
+   * identity connection (`identityConnectionString`).
    */
   withGlobal<T>(fn: (tx: GlobalTx) => Promise<T>): Promise<T>;
   /** Readiness probe. Touches no tenant data, so it needs no tenant. */
@@ -57,7 +59,13 @@ export interface Db {
   end(): Promise<void>;
 }
 
-export type DbOptions = PoolOptions;
+export interface DbOptions extends PoolOptions {
+  /**
+   * Connection string for the `prysm_identity` role, used only by `withGlobal` (ADR-0013, F-49). Optional so a
+   * service that never touches the global tables needs no identity credential; `withGlobal` throws without it.
+   */
+  identityConnectionString?: string;
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -110,8 +118,11 @@ async function inTransaction<T>(
   }
 }
 
-/** Builds a `Db` over an existing pool. Exported only inside the package, for tests that need to inspect the pool. */
-export function createDbOnPool(pool: pg.Pool): Db {
+/**
+ * Builds a `Db` over an existing pool (and, for `withGlobal`, an identity pool). Exported only inside the package,
+ * for tests that need to inspect the pools.
+ */
+export function createDbOnPool(pool: pg.Pool, identityPool?: pg.Pool): Db {
   return {
     async withTenant<T>(tenantId: string, fn: (tx: TenantTx) => Promise<T>): Promise<T> {
       assertTenantId(tenantId);
@@ -125,8 +136,11 @@ export function createDbOnPool(pool: pg.Pool): Db {
       );
     },
     withGlobal<T>(fn: (tx: GlobalTx) => Promise<T>): Promise<T> {
+      if (!identityPool) {
+        return Promise.reject(new Error('withGlobal needs an identity connection: set identityConnectionString'));
+      }
       return inTransaction(
-        pool,
+        identityPool,
         () => Promise.resolve(),
         (text) => {
           const hit = TENANT_TABLE_PATTERN.exec(text);
@@ -136,11 +150,21 @@ export function createDbOnPool(pool: pg.Pool): Db {
       );
     },
     ping: () => ping(pool),
-    end: () => pool.end(),
+    end: async () => {
+      await Promise.all([pool.end(), identityPool?.end()]);
+    },
   };
 }
 
-/** Creates a `Db` with its own pool. */
-export function createDb(options: DbOptions): Db {
-  return createDbOnPool(createPool(options));
+/** Creates a `Db` with its own pool, plus a small identity pool when `identityConnectionString` is given. */
+export function createDb({ identityConnectionString, ...options }: DbOptions): Db {
+  const identityPool = identityConnectionString
+    ? createPool({
+        ...options,
+        connectionString: identityConnectionString,
+        applicationName: `${options.applicationName}-identity`,
+        max: Math.min(options.max ?? 10, 4),
+      })
+    : undefined;
+  return createDbOnPool(createPool(options), identityPool);
 }

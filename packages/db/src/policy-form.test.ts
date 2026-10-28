@@ -1,6 +1,6 @@
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { TENANT_TABLES } from './tables.ts';
+import { GLOBAL_TABLES, TENANT_TABLES } from './tables.ts';
 import { createTestDatabase, type TestDatabase } from './testing/index.ts';
 
 // The shape of the tenant-id helper and of every policy (ADR-0007 as amended by the 0002 policy form).
@@ -55,7 +55,8 @@ describe('policies', () => {
   it('every tenant policy calls the helper inside a sub-select and never reads the setting directly', async () => {
     const { rows } = await owner.query<{ table: string; using: string; check: string }>(
       `SELECT polrelid::regclass::text AS table, pg_get_expr(polqual, polrelid) AS using, pg_get_expr(polwithcheck, polrelid) AS check
-         FROM pg_policy ORDER BY 1`,
+         FROM pg_policy WHERE polrelid::regclass::text <> ALL($1) ORDER BY 1`,
+      [Object.keys(GLOBAL_TABLES)],
     );
     expect(rows.map((r) => r.table).sort()).toEqual([...TENANT_TABLES].sort());
     for (const r of rows) {

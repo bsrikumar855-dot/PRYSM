@@ -56,6 +56,7 @@ const tenantA = randomUUID();
 const tenantB = randomUUID();
 let testDb: TestDatabase;
 let appPool: pg.Pool;
+let identityPool: pg.Pool;
 let appDb: Db;
 let ownerPool: pg.Pool;
 
@@ -99,11 +100,16 @@ beforeAll(async () => {
   testDb = await createTestDatabase({ suite: 'isolation' });
   appPool = createPool({ connectionString: testDb.appUrl, applicationName: 'prysm-isolation-app', max: 4 });
   ownerPool = createPool({ connectionString: testDb.ownerUrl, applicationName: 'prysm-isolation-owner', max: 2 });
-  appDb = createDbOnPool(appPool);
+  identityPool = createPool({
+    connectionString: testDb.identityUrl,
+    applicationName: 'prysm-isolation-identity',
+    max: 2,
+  });
+  appDb = createDbOnPool(appPool, identityPool);
   // Global users first (one per tenant), then each tenant's rows through the real withTenant path.
   userIdByTenant = new Map();
   for (const tenant of [tenantA, tenantB]) {
-    const { rows } = await appPool.query<{ id: string }>('INSERT INTO users (email) VALUES ($1) RETURNING id', [
+    const { rows } = await identityPool.query<{ id: string }>('INSERT INTO users (email) VALUES ($1) RETURNING id', [
       `user-${tenant}@example.test`,
     ]);
     userIdByTenant.set(tenant, (rows[0] as { id: string }).id);
@@ -119,7 +125,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await Promise.all([appPool.end(), ownerPool.end()]);
+  await Promise.all([appPool.end(), ownerPool.end(), identityPool.end()]);
   await testDb.drop();
 });
 

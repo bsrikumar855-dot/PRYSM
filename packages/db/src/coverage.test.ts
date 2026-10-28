@@ -41,7 +41,9 @@ describe('RLS coverage on the migrated schema', () => {
   it('the tenant tables in code match the catalog exactly (no table can hide from withGlobal)', async () => {
     const { rows } = await owner.query<{ relname: string }>(
       `SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relrowsecurity ORDER BY 1`,
+        WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relrowsecurity
+          AND NOT (c.relname = ANY($1)) ORDER BY 1`,
+      [Object.keys(GLOBAL_TABLES)],
     );
     expect(rows.map((r) => r.relname)).toEqual([...TENANT_TABLES].sort());
   });

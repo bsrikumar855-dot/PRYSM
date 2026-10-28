@@ -6,17 +6,21 @@ import { createPool } from './pool.ts';
 import { createTestDatabase, type TestDatabase } from './testing/index.ts';
 import { provisionTenant } from './tenancy.ts';
 
-// The withGlobal guard is a text match, so it is defence in depth only. The control is RLS: with no tenant set
-// Postgres returns nothing from, and rejects writes to, every tenant table. These tests take the guard away (or
-// walk around it) and show RLS alone still holds.
+// The withGlobal guard is a text match, so it is defence in depth only. The control is the database: withGlobal runs as
+// prysm_identity, which holds no privilege on any tenant table (migration 0004, F-49), so Postgres rejects every
+// statement that reaches one. These tests take the guard away (or walk around it) and show the privileges alone hold.
+// The tenant is still read through prysm_app inside withTenant as a control, so a rejection is not an empty table.
 let testDb: TestDatabase;
 let pool: pg.Pool;
+let identityPool: pg.Pool;
 let db: Db;
 let tenantA = '';
 
-/** A transaction with no tenant set: exactly what withGlobal runs, minus the guard. Always rolled back. */
+const DENIED = /permission denied/;
+
+/** A transaction on the identity connection with no tenant set: exactly what withGlobal runs, minus the guard. Always rolled back. */
 async function withoutGuard<T>(fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
+  const client = await identityPool.connect();
   try {
     await client.query('BEGIN');
     return await fn(client);
@@ -29,8 +33,9 @@ async function withoutGuard<T>(fn: (c: pg.PoolClient) => Promise<T>): Promise<T>
 beforeAll(async () => {
   testDb = await createTestDatabase({ suite: 'with_global_bypass' });
   pool = createPool({ connectionString: testDb.appUrl, applicationName: 'prysm-bypass-test', max: 3 });
-  db = createDbOnPool(pool);
-  const { rows } = await pool.query<{ id: string }>('INSERT INTO users (email) VALUES ($1) RETURNING id', [
+  identityPool = createPool({ connectionString: testDb.identityUrl, applicationName: 'prysm-bypass-identity', max: 3 });
+  db = createDbOnPool(pool, identityPool);
+  const { rows } = await identityPool.query<{ id: string }>('INSERT INTO users (email) VALUES ($1) RETURNING id', [
     `bypass-${randomUUID()}@example.test`,
   ]);
   tenantA = (
@@ -43,7 +48,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await pool.end();
+  await Promise.all([pool.end(), identityPool.end()]);
   await testDb.drop();
 });
 
@@ -68,12 +73,10 @@ const EVASIVE = [
   "SELECT count(*) AS n FROM xmltable('/table/row' PASSING query_to_xml('SELECT * FROM ten' || 'ants', true, false, '') COLUMNS id text PATH 'id')",
 ];
 
-describe('withGlobal guard is defence in depth: RLS still returns nothing with the guard removed', () => {
+describe('withGlobal guard is defence in depth: the identity role is refused with the guard removed', () => {
   for (const sql of NAMED) {
     it(`no tenant set, no guard: ${sql}`, async () => {
-      const { rows } = await withoutGuard((c) => c.query(sql));
-      if (sql.includes('count(*)')) expect(rows[0]).toMatchObject({ n: '0' });
-      else expect(rows).toEqual([]);
+      await expect(withoutGuard((c) => c.query(sql))).rejects.toThrow(DENIED);
     });
   }
 
@@ -84,15 +87,17 @@ describe('withGlobal guard is defence in depth: RLS still returns nothing with t
         sql,
       ).rejects.toThrow(/withGlobal cannot touch the tenant table/);
   });
+
+  it('withGlobal fails clearly when the Db was built without an identity connection', async () => {
+    const noIdentity = createDbOnPool(pool);
+    await expect(noIdentity.withGlobal((tx) => tx.query('SELECT 1'))).rejects.toThrow(/needs an identity connection/);
+  });
 });
 
-describe('statements that walk around the guard still see no tenant rows', () => {
+describe('statements that walk around the guard are refused by the database', () => {
   for (const sql of EVASIVE) {
-    it(`passes the guard but returns zero rows: ${sql}`, async () => {
-      const result = await db.withGlobal((tx) => tx.query<Record<string, string>>(sql));
-      const rows = result.rows;
-      if (sql.includes('count(*)')) expect(rows[0]).toMatchObject({ n: '0' });
-      else expect(rows).toEqual([]);
+    it(`passes the guard but the identity role is denied: ${sql}`, async () => {
+      await expect(db.withGlobal((tx) => tx.query(sql))).rejects.toThrow(DENIED);
     });
 
     it(`is a real tenant-table read (control): the same statement inside withTenant finds the tenant's row: ${sql}`, async () => {
@@ -102,14 +107,13 @@ describe('statements that walk around the guard still see no tenant rows', () =>
     });
   }
 
-  it('query_to_xml of a tenant table through withGlobal contains no row', async () => {
-    const { rows } = await db.withGlobal((tx) =>
-      tx.query<{ x: string }>("SELECT query_to_xml('SELECT * FROM ten' || 'ants', true, false, '')::text AS x"),
-    );
-    expect(rows[0]?.x).not.toContain('<row');
+  it('query_to_xml of a tenant table through withGlobal is denied, not empty', async () => {
+    await expect(
+      db.withGlobal((tx) => tx.query("SELECT query_to_xml('SELECT * FROM ten' || 'ants', true, false, '')::text AS x")),
+    ).rejects.toThrow(DENIED);
   });
 
-  it('writes that walk around the guard are rejected by RLS or the grants', async () => {
+  it('writes that walk around the guard are denied by the grants, and nothing changes', async () => {
     await expect(
       db.withGlobal((tx) =>
         tx.query('INSERT INTO U&"ten\\0061nts" (id, slug, name) VALUES ($1, $2, $3)', [
@@ -118,15 +122,16 @@ describe('statements that walk around the guard still see no tenant rows', () =>
           'x',
         ]),
       ),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(DENIED);
     await expect(
       db.withGlobal((tx) =>
         tx.query('INSERT INTO U&"memb\\0065rships" (tenant_id, user_id, role) VALUES ($1, $1, \'owner\')', [tenantA]),
       ),
-    ).rejects.toThrow(/row-level security/);
-    const update = await db.withGlobal((tx) => tx.query('UPDATE U&"ten\\0061nts" SET name = \'pwned\''));
-    expect(update.rowCount).toBe(0);
-    await expect(db.withGlobal((tx) => tx.query('DELETE FROM U&"ten\\0061nts"'))).rejects.toThrow(/permission denied/);
+    ).rejects.toThrow(DENIED);
+    await expect(db.withGlobal((tx) => tx.query('UPDATE U&"ten\\0061nts" SET name = \'pwned\''))).rejects.toThrow(
+      DENIED,
+    );
+    await expect(db.withGlobal((tx) => tx.query('DELETE FROM U&"ten\\0061nts"'))).rejects.toThrow(DENIED);
     const still = await db.withTenant(tenantA, (tx) => tx.query<{ name: string }>('SELECT name FROM tenants'));
     expect(still.rows).toEqual([{ name: 'A' }]);
   });

@@ -16,23 +16,8 @@ const EXPECTED_APP_GRANTS: Record<string, { table: string[]; updateColumns: stri
     updateColumns: ['retention_days', 'retention_mode', 'sso_config_enc', 'updated_at'],
   },
   memberships: { table: ['INSERT', 'SELECT'], updateColumns: ['role', 'status'] },
-  users: {
-    table: ['INSERT', 'SELECT'],
-    updateColumns: [
-      'disabled_at',
-      'email',
-      'email_verified_at',
-      'failed_logins',
-      'locked_until',
-      'password_algorithm',
-      'password_memory_kib',
-      'password_parallelism',
-      'password_passes',
-      'password_salt',
-      'password_tag',
-      'updated_at',
-    ],
-  },
+  // F-49: prysm_app holds no table-level privilege on users and no UPDATE column; its four SELECT columns are checked below.
+  users: { table: [], updateColumns: [] },
 };
 
 let db: TestDatabase;

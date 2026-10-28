@@ -4,7 +4,7 @@ import { createPool, ping } from './pool.ts';
 import { findRlsGaps } from './rls-coverage.ts';
 import { createTestDatabase, type TestDatabase } from './testing/index.ts';
 
-const RUNTIME_ROLES = ['prysm_app', 'prysm_platform', 'prysm_gateway_outbox'];
+const RUNTIME_ROLES = ['prysm_app', 'prysm_identity', 'prysm_platform', 'prysm_gateway_outbox'];
 
 // Runs against a private clone of the migrated template, so the checks below hold for what `db:migrate`
 // produces and no other suite can see these tables.

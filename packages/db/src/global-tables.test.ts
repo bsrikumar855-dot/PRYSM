@@ -3,7 +3,7 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDbOnPool, type Db } from './db.ts';
 import { createPool } from './pool.ts';
-import { TENANT_TABLES } from './tables.ts';
+import { GLOBAL_TABLES, TENANT_TABLES } from './tables.ts';
 import { createTestDatabase, type TestDatabase } from './testing/index.ts';
 import { provisionTenant, provisionTenantWithId } from './tenancy.ts';
 
@@ -11,11 +11,12 @@ import { provisionTenant, provisionTenantWithId } from './tenancy.ts';
 // api_keys in PR 9, and G8, the Valkey key prefix, with the first Valkey key helper in PR 6; both are tracked.)
 let testDb: TestDatabase;
 let pool: pg.Pool;
+let identityPool: pg.Pool;
 let owner: pg.Client;
 let db: Db;
 
 async function newUser(label: string): Promise<string> {
-  const { rows } = await pool.query<{ id: string }>('INSERT INTO users (email) VALUES ($1) RETURNING id', [
+  const { rows } = await identityPool.query<{ id: string }>('INSERT INTO users (email) VALUES ($1) RETURNING id', [
     `${label}-${randomUUID()}@example.test`,
   ]);
   return (rows[0] as { id: string }).id;
@@ -26,7 +27,8 @@ const slug = (label: string): string => `${label}-${randomUUID().slice(0, 8)}`;
 beforeAll(async () => {
   testDb = await createTestDatabase({ suite: 'global_tables' });
   pool = createPool({ connectionString: testDb.appUrl, applicationName: 'prysm-global-test', max: 4 });
-  db = createDbOnPool(pool);
+  identityPool = createPool({ connectionString: testDb.identityUrl, applicationName: 'prysm-global-identity', max: 2 });
+  db = createDbOnPool(pool, identityPool);
   owner = new pg.Client({ connectionString: testDb.ownerUrl });
   await owner.connect();
 });
@@ -34,18 +36,30 @@ beforeAll(async () => {
 afterAll(async () => {
   await owner.end();
   await pool.end();
+  await identityPool.end();
   await testDb.drop();
 });
 
 describe('G4: grants on global tables', () => {
-  it('prysm_app has no DELETE on users, and prysm_platform and prysm_gateway_outbox have no privilege on it', async () => {
+  it('only prysm_identity can write users; nobody can delete; prysm_platform and prysm_gateway_outbox have nothing', async () => {
     const { rows } = await owner.query<Record<string, boolean>>(
-      `SELECT has_table_privilege('prysm_app', 'public.users', 'DELETE') AS app_delete,
-              has_table_privilege('prysm_app', 'public.users', 'SELECT') AS app_select,
+      `SELECT has_table_privilege('prysm_app', 'public.users', 'INSERT, UPDATE, DELETE, TRUNCATE') AS app_write,
+              has_table_privilege('prysm_app', 'public.users', 'SELECT') AS app_table_select,
+              has_table_privilege('prysm_identity', 'public.users', 'SELECT') AS identity_select,
+              has_table_privilege('prysm_identity', 'public.users', 'INSERT') AS identity_insert,
+              has_table_privilege('prysm_identity', 'public.users', 'DELETE, TRUNCATE') AS identity_delete,
               has_table_privilege('prysm_platform', 'public.users', 'SELECT, INSERT, UPDATE, DELETE') AS platform,
               has_table_privilege('prysm_gateway_outbox', 'public.users', 'SELECT, INSERT, UPDATE, DELETE') AS outbox`,
     );
-    expect(rows[0]).toEqual({ app_delete: false, app_select: true, platform: false, outbox: false });
+    expect(rows[0]).toEqual({
+      app_write: false,
+      app_table_select: false,
+      identity_select: true,
+      identity_insert: true,
+      identity_delete: false,
+      platform: false,
+      outbox: false,
+    });
   });
 });
 
@@ -102,7 +116,9 @@ describe('G6: withGlobal reaches the global tables and refuses the tenant ones',
 
   it('has a tenant-table list in code that equals the catalog (the guard cannot be out of date)', async () => {
     const { rows } = await owner.query<{ relname: string }>(
-      `SELECT relname FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r', 'p') AND relrowsecurity ORDER BY 1`,
+      `SELECT relname FROM pg_class WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r', 'p') AND relrowsecurity
+          AND NOT (relname = ANY($1)) ORDER BY 1`,
+      [Object.keys(GLOBAL_TABLES)],
     );
     expect(rows.map((r) => r.relname)).toEqual([...TENANT_TABLES].sort());
   });

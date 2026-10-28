@@ -17,3 +17,24 @@ export const GLOBAL_TABLES: Readonly<Record<string, string>> = {
  * the catalog, so it cannot drift from the migrations.
  */
 export const TENANT_TABLES: readonly string[] = ['memberships', 'tenant_settings', 'tenants'];
+
+/**
+ * Every column of `users`, classified (F-49). `safe` columns are the only ones `prysm_app` may read; `secret` columns are
+ * reachable only through `withGlobal` (`prysm_identity`). A test compares this to the catalog and to the grants, so a new
+ * column fails CI until it is classified here and in a migration.
+ */
+export const USERS_COLUMN_CLASSES = {
+  safe: ['created_at', 'email', 'email_verified_at', 'id'],
+  secret: [
+    'disabled_at',
+    'failed_logins',
+    'locked_until',
+    'password_algorithm',
+    'password_memory_kib',
+    'password_parallelism',
+    'password_passes',
+    'password_salt',
+    'password_tag',
+    'updated_at',
+  ],
+} as const;

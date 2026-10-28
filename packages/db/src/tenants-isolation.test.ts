@@ -12,11 +12,12 @@ import { provisionTenant } from './tenancy.ts';
 // once, and without a policy it can only report that seeding failed).
 let testDb: TestDatabase;
 let pool: pg.Pool;
+let identityPool: pg.Pool;
 let owner: pg.Client;
 let db: Db;
 
 async function newTenant(label: string): Promise<string> {
-  const { rows } = await pool.query<{ id: string }>('INSERT INTO users (email) VALUES ($1) RETURNING id', [
+  const { rows } = await identityPool.query<{ id: string }>('INSERT INTO users (email) VALUES ($1) RETURNING id', [
     `${label}-${randomUUID()}@example.test`,
   ]);
   const ownerUserId = (rows[0] as { id: string }).id;
@@ -27,7 +28,12 @@ async function newTenant(label: string): Promise<string> {
 beforeAll(async () => {
   testDb = await createTestDatabase({ suite: 'tenants_isolation' });
   pool = createPool({ connectionString: testDb.appUrl, applicationName: 'prysm-tenants-test', max: 3 });
-  db = createDbOnPool(pool);
+  identityPool = createPool({
+    connectionString: testDb.identityUrl,
+    applicationName: 'prysm-tenants-identity',
+    max: 2,
+  });
+  db = createDbOnPool(pool, identityPool);
   owner = new pg.Client({ connectionString: testDb.ownerUrl });
   await owner.connect();
 });
@@ -35,6 +41,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await owner.end();
   await pool.end();
+  await identityPool.end();
   await testDb.drop();
 });
 
