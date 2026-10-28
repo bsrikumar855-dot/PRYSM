@@ -12,7 +12,7 @@ export default defineConfig({
     testTimeout: 30_000,
     coverage: {
       include: ['src/**'],
-      exclude: ['src/**/*.test.ts', 'src/cli/**', 'src/gateway/main.ts', 'src/agent/**'],
+      exclude: ['src/**/*.test.ts', 'src/cli/**', 'src/gateway/main.ts', 'src/test-support/**'],
       thresholds: { lines: 90, branches: 85 },
     },
   },
