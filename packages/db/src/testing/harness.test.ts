@@ -1,7 +1,7 @@
 import pg from 'pg';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, suiteScope, sweepStaleTestDatabases, type TestDatabase } from './index.ts';
-import { TEMPLATE_DATABASE, testDatabaseName, withDatabase } from './urls.ts';
+import { TEMPLATE_DATABASE, withDatabase } from './urls.ts';
 
 const created: TestDatabase[] = [];
 async function make(suite: string): Promise<TestDatabase> {
@@ -72,46 +72,58 @@ describe('template-database harness', () => {
     await db.drop();
   });
 
+  // These fixtures live under their own prefix. The default sweep, which every other suite runs on its first
+  // createTestDatabase, matches only prysm_t_, so it can never drop a fixture while a test here is using it (T-004).
+  const SCOPE = 'prysm_sweeptest_';
+  const fixtureName = (label: string, ageMs: number, hex: string) =>
+    `${SCOPE}${String(Math.floor((Date.now() - ageMs) / 1000))}_${label}_${hex}`;
+  const exists = async (admin: pg.Client, name: string) =>
+    (await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [name])).rowCount === 1;
+
   it('skips an old database that still has an open connection, then drops it once idle', async () => {
     const admin = new pg.Client({ connectionString: process.env['DATABASE_URL_TEST_ADMIN'] });
     await admin.connect();
-    const busy = testDatabaseName('sweep_busy', Date.now() - 2 * 3600_000, 'cccccc');
+    const busy = fixtureName('busy', 2 * 3600_000, 'cccccc');
     try {
       await admin.query(`CREATE DATABASE ${admin.escapeIdentifier(busy)} TEMPLATE ${TEMPLATE_DATABASE}`);
       const open = new pg.Client({ connectionString: withDatabase(process.env['DATABASE_URL_OWNER'] ?? '', busy) });
       await open.connect();
-      expect(await sweepStaleTestDatabases()).not.toContain(busy);
-      const stillThere = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [busy]);
-      expect(stillThere.rowCount).toBe(1);
+      expect(await sweepStaleTestDatabases(undefined, undefined, SCOPE)).not.toContain(busy);
+      expect(await exists(admin, busy)).toBe(true);
       await open.end();
-      expect(await sweepStaleTestDatabases()).toContain(busy);
+      expect(await sweepStaleTestDatabases(undefined, undefined, SCOPE)).toContain(busy);
+      expect(await exists(admin, busy)).toBe(false);
     } finally {
       await admin.query(`DROP DATABASE IF EXISTS ${admin.escapeIdentifier(busy)} WITH (FORCE)`);
       await admin.end();
     }
   });
 
-  it('sweeps only old harness databases', async () => {
+  it('sweeps only old databases under its prefix, and the default sweep leaves a scoped fixture alone', async () => {
     const admin = new pg.Client({ connectionString: process.env['DATABASE_URL_TEST_ADMIN'] });
     await admin.connect();
-    const old = testDatabaseName('sweep_old', Date.now() - 2 * 3600_000, 'aaaaaa');
-    const fresh = testDatabaseName('sweep_new', Date.now(), 'bbbbbb');
+    const old = fixtureName('old', 2 * 3600_000, 'aaaaaa');
+    const fresh = fixtureName('new', 0, 'bbbbbb');
     try {
       await admin.query(`CREATE DATABASE ${admin.escapeIdentifier(old)} TEMPLATE ${TEMPLATE_DATABASE}`);
       await admin.query(`CREATE DATABASE ${admin.escapeIdentifier(fresh)} TEMPLATE ${TEMPLATE_DATABASE}`);
-      const dropped = await sweepStaleTestDatabases();
+      expect(await sweepStaleTestDatabases()).not.toContain(old);
+      expect(await exists(admin, old)).toBe(true);
+      const dropped = await sweepStaleTestDatabases(undefined, undefined, SCOPE);
       expect(dropped).toContain(old);
       expect(dropped).not.toContain(fresh);
-      const { rows } = await admin.query<{ datname: string }>(
-        'SELECT datname FROM pg_database WHERE datname = ANY($1)',
-        [[old, fresh]],
-      );
-      expect(rows.map((r) => r.datname)).toEqual([fresh]);
+      expect(await exists(admin, old)).toBe(false);
+      expect(await exists(admin, fresh)).toBe(true);
     } finally {
       await admin.query(`DROP DATABASE IF EXISTS ${admin.escapeIdentifier(fresh)} WITH (FORCE)`);
       await admin.query(`DROP DATABASE IF EXISTS ${admin.escapeIdentifier(old)} WITH (FORCE)`);
       await admin.end();
     }
+  });
+
+  it('refuses a sweep prefix that could reach other databases', async () => {
+    for (const bad of ['', 'prysm_', 'prysm_template_', 'x_'])
+      await expect(sweepStaleTestDatabases(undefined, undefined, bad), bad).rejects.toThrow(/not a valid sweep prefix/);
   });
 });
 
