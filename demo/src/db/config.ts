@@ -10,11 +10,16 @@ export const DEMO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export const DEFAULT_ANCHOR_PATH = `${DEMO_ROOT}.anchor/anchor.json`;
 export const OUT_DIR = `${DEMO_ROOT}.out`;
 
-/** `-f` arguments for the dev compose file, plus a local override file if the developer has one. */
+/**
+ * `-f` arguments for the dev compose file, plus the developer's own override file if there is one, else the port override
+ * that `pnpm demo:up` generates when the default Postgres port is busy.
+ */
 export function composeFileArgs(): string[] {
   const args = ['-f', `${REPO_ROOT}infra/docker/compose.dev.yml`];
   const override = `${REPO_ROOT}infra/docker/compose.override.yml`;
+  const generated = `${OUT_DIR}/compose.ports.yml`;
   if (existsSync(override)) args.push('-f', override);
+  else if (existsSync(generated)) args.push('-f', generated);
   return args;
 }
 

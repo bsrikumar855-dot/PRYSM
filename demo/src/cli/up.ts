@@ -1,7 +1,7 @@
 // DEMO-ONLY (TODO(T-001)). `pnpm demo:up`: start Postgres, create the demo database and roles, migrate, seed the
 // first evidence record and check readiness. Safe to run again.
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import pg from 'pg';
 import {
   DEFAULT_ANCHOR_PATH,
@@ -12,6 +12,7 @@ import {
   demoDbUrls,
 } from '../db/config.ts';
 import { applyEvidenceMigration } from '../db/migrate.ts';
+import { isPortFree, pickFreePort, writePortOverride } from '../db/ports.ts';
 import { readAnchor } from '../evidence/anchor.ts';
 import { parsePolicyYaml } from '../policy/index.ts';
 import { appendEvidence, readChain, verifyAndAnchor } from '../evidence/store.ts';
@@ -27,8 +28,35 @@ const compose = (args: string[], input?: string): string =>
     stdio: ['pipe', 'pipe', 'inherit'],
   });
 
+/** Runs a docker command and, if it fails, prints its message (not a stack trace) and exits. */
+function dockerStep(args: string[]): void {
+  try {
+    compose(args);
+  } catch (error) {
+    const detail = error instanceof Error ? (error.message.split('\n')[0] ?? 'unknown error') : String(error);
+    process.stdout.write(
+      `[demo:up] docker failed: ${detail}\n[demo:up] Is Docker running, and is the current user allowed to use it?\n`,
+    );
+    process.exit(1);
+  }
+}
+
+// Postgres is not running yet and the default port is taken (often a system Postgres): publish it on a free port instead.
+const alreadyPublished = (() => {
+  try {
+    return compose(['port', 'postgres', '5432']).trim() !== '';
+  } catch {
+    return false;
+  }
+})();
+if (!alreadyPublished && !(await isPortFree(5432)) && !existsSync(`${REPO_ROOT}infra/docker/compose.override.yml`)) {
+  const port = await pickFreePort();
+  writePortOverride(port);
+  step(`port 5432 is in use; publishing the demo's Postgres on 127.0.0.1:${String(port)} instead`);
+}
+
 step('starting postgres (docker compose, waits until healthy)');
-compose(['up', '-d', '--wait', 'postgres']);
+dockerStep(['up', '-d', '--wait', 'postgres']);
 
 step('creating the demo database and roles (idempotent)');
 compose(
