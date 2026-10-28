@@ -40,5 +40,10 @@ export default tseslint.config(
     files: ['**/*.mjs', '**/*.js'],
     languageOptions: { globals: globals.node },
   },
+  {
+    // DEMO-ONLY dashboard script (TODO(T-001)): runs in the browser, not in Node.
+    files: ['demo/web/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: globals.browser },
+  },
   prettier,
 );

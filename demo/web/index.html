@@ -1,2 +1,90 @@
-<!doctype html><title>PRYSM demo</title>
-<p>DEMO-ONLY dashboard placeholder</p>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PRYSM demo: control status and evidence</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>PRYSM demo</h1>
+        <p class="sub">
+          Control status and evidence of every model tool request. <strong>DEMO-ONLY</strong>: single tenant, synthetic
+          data, no login.
+        </p>
+      </div>
+      <div id="badge" class="badge badge-unknown" role="status" aria-live="polite">
+        <span id="badge-label">Checking the evidence chain...</span>
+        <span id="badge-detail" class="badge-detail"></span>
+      </div>
+    </header>
+
+    <section class="strip" aria-label="Run information">
+      <div><span class="k">Model</span> <span id="info-model">-</span> <span id="info-mode" class="chip">-</span></div>
+      <div><span class="k">Policy</span> <span id="info-policy">-</span></div>
+      <div><span class="k">Anchor</span> <span id="info-anchor">-</span></div>
+      <div><span class="k">Records</span> <span id="info-count">0</span></div>
+    </section>
+
+    <main>
+      <section class="panel" aria-labelledby="queue-h">
+        <h2 id="queue-h">Approval queue</h2>
+        <p class="hint">
+          A tool call the policy marks "require_approval" waits here. A person decides; the decision and the name you
+          type are written to the evidence log.
+        </p>
+        <label class="field"
+          >Your name or role <input id="actor" type="text" maxlength="64" value="demo-reviewer" autocomplete="off"
+        /></label>
+        <ul id="queue" class="queue"></ul>
+        <p id="queue-empty" class="empty">Nothing is waiting for approval.</p>
+      </section>
+
+      <section class="panel wide" aria-labelledby="feed-h">
+        <h2 id="feed-h">Live decision feed</h2>
+        <p class="hint">
+          Evidence records as they are written, newest first. Prompts are redacted before they reach the model or this
+          log; only counts are shown.
+        </p>
+        <ol id="feed" class="feed"></ol>
+      </section>
+
+      <section class="panel tamper" aria-labelledby="tamper-h">
+        <h2 id="tamper-h">Tamper with the evidence (DEMO-ONLY)</h2>
+        <p class="hint">
+          These buttons use a separate administrator connection to edit the log behind the application's back, to show
+          what verification catches. The application's own role cannot do this.
+        </p>
+        <label class="field">Record number <input id="seq" type="number" min="0" value="2" /></label>
+        <div class="buttons">
+          <button id="btn-edit" type="button">Edit this record</button>
+          <button id="btn-rewrite" type="button">Rewrite the chain from this record</button>
+          <button id="btn-delete" type="button">Delete this record</button>
+        </div>
+        <ul class="explain">
+          <li><strong>Edit</strong>: changes one record's contents. The chain check fails at that record.</li>
+          <li>
+            <strong>Rewrite</strong>: also recomputes every hash, so the chain looks consistent. Only the anchor, kept
+            outside the database, gives it away.
+          </li>
+          <li><strong>Delete</strong>: removes a record. The chain check reports a gap at its position.</li>
+        </ul>
+        <div class="buttons">
+          <button id="btn-verify" type="button">Verify now</button>
+          <button id="btn-reset" type="button" class="danger">Reset the demo</button>
+        </div>
+        <p id="tamper-note" class="note" role="status" aria-live="polite"></p>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Decisions are made by the policy file, or by a named person. A model proposes tool requests; it never decides.
+        This page reports control status and evidence of what happened; it is not legal advice.
+      </p>
+    </footer>
+    <script src="/app.js"></script>
+  </body>
+</html>
