@@ -70,6 +70,19 @@ pnpm check                          # format, wording + TODO checks, lint, typec
 
 `pnpm stack:up` and `pnpm stack:down` run everything in containers. Ports, URLs and troubleshooting are in [docs/runbooks/local-dev.md](docs/runbooks/local-dev.md).
 
+## Demo (hackathon slice, DEMO-ONLY)
+
+A two-day slice under [`demo/`](demo/README.md): redaction, a deterministic policy that decides model tool requests
+(never the model), human approvals, and a hash-chained evidence log with an external anchor you can tamper with on purpose
+to watch verification fail. It runs fully offline in replay mode.
+
+```bash
+pnpm demo:start                                  # Postgres + migrate + seed + dashboard at http://127.0.0.1:4300
+pnpm demo:agent -- --auto-approve demo-script    # in a second terminal: three scenarios
+```
+
+The full 3-minute script, replay-mode notes and the list of cut corners are in [`demo/README.md`](demo/README.md).
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
