@@ -10,6 +10,8 @@ import type { ChatResult, ParsedToolCall, ToolDef } from './types.ts';
 
 const MAX_ARGUMENT_BYTES = 64 * 1024;
 const MAX_CALLS = 8;
+const MAX_CHOICES = 8;
+const MAX_CONTENT_CHARS = 128 * 1024;
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/;
 
 const nativeCallSchema = z.looseObject({
@@ -36,6 +38,15 @@ const promptedSchema = z.union([
   z.strictObject({ tool_calls: z.array(promptedCallSchema).min(1).max(MAX_CALLS) }),
   z.strictObject({ tool: z.string(), arguments: z.record(z.string(), z.unknown()).default({}) }),
 ]);
+
+/**
+ * True when `value` is an array longer than `max`. Checked BEFORE a schema sees it: zod validates every element of an array
+ * and keeps one issue per failing element, so a `.max()` on the schema alone does not stop a huge array from being walked
+ * (GHSA-mrhx-c7xc-m3w5). The response is already capped at a few MiB; this keeps the work and memory per response small.
+ */
+function tooLong(value: unknown, max: number): boolean {
+  return Array.isArray(value) && value.length > max;
+}
 
 function parseArguments(raw: string): { ok: true; value: Record<string, unknown> } | { ok: false; reason: string } {
   if (Buffer.byteLength(raw, 'utf8') > MAX_ARGUMENT_BYTES) return { ok: false, reason: 'arguments are too large' };
@@ -92,7 +103,9 @@ function promptedCalls(
 ): { calls: ParsedToolCall[]; matched: boolean; note?: string } {
   const json = extractJson(content);
   if (json === undefined || typeof json !== 'object') return { calls: [], matched: false };
-  const parsed = promptedSchema.safeParse(json);
+  const parsed = tooLong((json as { tool_calls?: unknown }).tool_calls, MAX_CALLS)
+    ? { success: false as const }
+    : promptedSchema.safeParse(json);
   if (!parsed.success) {
     // It looked like JSON but not like a tool request. Only treat it as a malformed request if it mentions one.
     const looksLikeRequest = typeof json === 'object' && json !== null && ('tool' in json || 'tool_calls' in json);
@@ -125,10 +138,13 @@ export type ParseOptions = { tools: readonly ToolDef[]; toolMode: 'native' | 'pr
  * completion at all returns null so the caller can raise a ModelError.
  */
 export function parseCompletion(body: unknown, options: ParseOptions): ChatResult | null {
+  if (typeof body === 'object' && body !== null && tooLong((body as { choices?: unknown }).choices, MAX_CHOICES))
+    return null;
   const completion = completionSchema.safeParse(body);
   if (!completion.success) return null;
   const choice = completion.data.choices[0];
   if (!choice) return null;
+  if (typeof choice.message.content === 'string' && choice.message.content.length > MAX_CONTENT_CHARS) return null;
   const content = typeof choice.message.content === 'string' ? choice.message.content : null;
   const finishReason = choice.finish_reason ?? null;
   const offered = new Set(options.tools.map((t) => t.name));
@@ -139,7 +155,9 @@ export function parseCompletion(body: unknown, options: ParseOptions): ChatResul
     choice.message.tool_calls !== undefined &&
     choice.message.tool_calls !== null
   ) {
-    const native = nativeCallsSchema.safeParse(choice.message.tool_calls);
+    const native = tooLong(choice.message.tool_calls, MAX_CALLS)
+      ? { success: false as const }
+      : nativeCallsSchema.safeParse(choice.message.tool_calls);
     if (native.success)
       return { content, toolCalls: nativeCalls(native.data, offered), mode: 'native-tool-calls', finishReason, notes };
     notes.push('tool_calls was present but malformed; trying the prompted-JSON fallback');

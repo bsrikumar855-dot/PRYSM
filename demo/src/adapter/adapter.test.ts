@@ -151,6 +151,50 @@ describe('Mode B: prompted JSON', () => {
   });
 });
 
+describe('response caps', () => {
+  const BIG = 500_000;
+  const quickly = (run: () => unknown) => {
+    const start = performance.now();
+    const result = run();
+    expect(performance.now() - start).toBeLessThan(250);
+    return result;
+  };
+
+  it('rejects an oversized choices array without walking it', () => {
+    expect(quickly(() => parse({ choices: Array.from({ length: BIG }, () => ({})) }))).toBeNull();
+    expect(
+      quickly(() => parse({ choices: Array.from({ length: 9 }, () => ({ message: { content: 'x' } })) })),
+    ).toBeNull();
+  });
+
+  it('treats an oversized native tool_calls array as one denied call', () => {
+    const r = quickly(() => parse(nativeBody(Array.from({ length: BIG }, () => ({ nope: 1 }))))) as ReturnType<
+      typeof parse
+    >;
+    expect(r?.toolCalls).toEqual([{ ok: false, id: 'call_0', name: null, reason: 'tool_calls was malformed' }]);
+  });
+
+  it('treats an oversized prompted tool_calls array as a malformed request', () => {
+    const text = JSON.stringify({ tool_calls: Array.from({ length: 50_000 }, () => 1) });
+    const r = quickly(() => parse({ choices: [{ message: { content: text } }] }, 'prompted')) as ReturnType<
+      typeof parse
+    >;
+    expect(r?.toolCalls).toEqual([
+      { ok: false, id: 'prompted_0', name: null, reason: 'the JSON tool request has the wrong shape' },
+    ]);
+  });
+
+  it('rejects content over 128 KiB and arguments over 64 KiB', () => {
+    expect(parse({ choices: [{ message: { content: 'a'.repeat(128 * 1024 + 1) } }] })).toBeNull();
+    const big = JSON.stringify({ note: 'a'.repeat(64 * 1024) });
+    expect(parse(nativeBody([fn('lookup_order', big)]))?.toolCalls[0]).toMatchObject({
+      ok: false,
+      reason: 'arguments are too large',
+    });
+    expect(parse({ choices: [{ message: { content: 'a'.repeat(128 * 1024) } }] })?.toolCalls).toEqual([]);
+  });
+});
+
 describe('response validation', () => {
   it('returns null for bodies that are not chat completions', () => {
     for (const bad of [
