@@ -3,7 +3,7 @@ import type { Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pg from 'pg';
-import { createTestDatabase, type TestDatabase } from '@prysm/db/testing';
+import { createDemoTestDatabase, type DemoTestDatabase } from './db.ts';
 import { ReplayChatModel, loadFixtures, type ChatModel } from '../adapter/index.ts';
 import { DEMO_TOOLS } from '../adapter/tools.ts';
 import { applyEvidenceMigration } from '../db/migrate.ts';
@@ -28,7 +28,7 @@ export interface TestServer {
 
 export async function startTestServer(suite: string, model?: ChatModel): Promise<TestServer> {
   const root = new URL('../../', import.meta.url).pathname;
-  const testDb: TestDatabase = await createTestDatabase({ suite });
+  const testDb: DemoTestDatabase = await createDemoTestDatabase({ suite });
   const admin = new pg.Pool({ connectionString: testDb.ownerUrl, max: 3 });
   const db = new pg.Pool({ connectionString: testDb.appUrl, max: 8 });
   const c = await admin.connect();

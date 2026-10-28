@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pg from 'pg';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createTestDatabase, type TestDatabase } from '@prysm/db/testing';
+import { createDemoTestDatabase, type DemoTestDatabase } from '../test-support/db.ts';
 import {
   ReplayChatModel,
   ModelError,
@@ -33,7 +33,7 @@ const ROOT = new URL('../../', import.meta.url).pathname;
 const policy = parsePolicyYaml(readFileSync(`${ROOT}policies/demo-policy.yaml`, 'utf8'));
 const fixtures = loadFixtures(`${ROOT}fixtures/replay.json`);
 
-let testDb: TestDatabase;
+let testDb: DemoTestDatabase;
 let db: pg.Pool;
 let admin: pg.Pool;
 let dir = '';
@@ -78,7 +78,7 @@ async function docs(): Promise<{ type: string; actor: string; data: Record<strin
 }
 
 beforeAll(async () => {
-  testDb = await createTestDatabase({ suite: 'demo_gateway' });
+  testDb = await createDemoTestDatabase({ suite: 'demo_gateway' });
   const owner = new pg.Pool({ connectionString: testDb.ownerUrl, max: 3 });
   db = new pg.Pool({ connectionString: testDb.appUrl, max: 8 });
   admin = owner;
