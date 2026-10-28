@@ -3,6 +3,7 @@ import pg from 'pg';
 import {
   TEMPLATE_DATABASE,
   TEST_DATABASE_PREFIX,
+  isSweepPrefix,
   testDatabaseCreatedAtMs,
   testDatabaseName,
   withDatabase,
@@ -60,16 +61,22 @@ const OBJECT_IN_USE = '55006';
  * Drops harness databases older than `maxAgeMs` (left behind by a crashed run) and returns the names it
  * dropped. A database with any open connection is skipped, never forced: it may belong to a run that is
  * still going (a slow CI job, another developer's suite on a shared server). Only names that start with
- * the harness prefix and carry a parseable timestamp are ever touched.
+ * the harness prefix and carry a parseable timestamp are ever touched. `prefix` (default: the harness prefix) lets the
+ * harness's own tests sweep fixtures under a separate prefix that the default sweep, run by every other suite, cannot see.
  */
-export async function sweepStaleTestDatabases(maxAgeMs = SWEEP_AFTER_MS, nowMs = Date.now()): Promise<string[]> {
+export async function sweepStaleTestDatabases(
+  maxAgeMs = SWEEP_AFTER_MS,
+  nowMs = Date.now(),
+  prefix: string = TEST_DATABASE_PREFIX,
+): Promise<string[]> {
+  if (!isSweepPrefix(prefix)) throw new TypeError(`not a valid sweep prefix: ${prefix}`);
   return withAdmin(async (admin) => {
     const { rows } = await admin.query<{ datname: string }>('SELECT datname FROM pg_database WHERE datname LIKE $1', [
-      `${TEST_DATABASE_PREFIX.replaceAll('_', '\\_')}%`,
+      `${prefix.replaceAll('_', '\\_')}%`,
     ]);
     const dropped: string[] = [];
     for (const { datname } of rows) {
-      const createdAt = testDatabaseCreatedAtMs(datname);
+      const createdAt = testDatabaseCreatedAtMs(datname, prefix);
       if (createdAt === null || nowMs - createdAt < maxAgeMs) continue;
       try {
         // No FORCE: Postgres refuses while anyone is connected, which is exactly the "still in use" check.
