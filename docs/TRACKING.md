@@ -291,6 +291,6 @@ Ignition (MIT, github.com/suchitchopade3110-arch/Ignition) is a read-only refere
 
 Every `TODO(T-###)` in the codebase must appear here. CI fails on a `TODO` that has no ID or isn't registered.
 
-| ID  | Location | Description | Milestone |
-| --- | -------- | ----------- | --------- |
-| —   | —        | none        | —         |
+| ID    | Location                       | Description                                                                                                                                                                               | Milestone      |
+| ----- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| T-001 | `pnpm-workspace.yaml`, `demo/` | DEMO-ONLY hackathon workspace (Meta hackathon slice). Single-tenant, synthetic data. After the hackathon, delete it or promote the parts worth keeping into `packages/` with full tenancy | Post-hackathon |
