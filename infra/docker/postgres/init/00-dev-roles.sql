@@ -5,6 +5,9 @@ CREATE ROLE prysm_owner LOGIN PASSWORD 'prysm-owner-dev-only' NOSUPERUSER NOBYPA
 CREATE ROLE prysm_app LOGIN PASSWORD 'prysm-app-dev-only' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
 CREATE ROLE prysm_platform LOGIN PASSWORD 'prysm-platform-dev-only' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
 CREATE ROLE prysm_gateway_outbox LOGIN PASSWORD 'prysm-gateway-dev-only' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
+-- Identity role (ADR-0013, TRACKING F-49): the only runtime role that may read or write the password columns of
+-- `users`, and the one `withGlobal` connects as. It holds no privilege on any tenant table (migration 0004).
+CREATE ROLE prysm_identity LOGIN PASSWORD 'prysm-identity-dev-only' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION;
 
 CREATE DATABASE prysm OWNER prysm_owner;
 \connect prysm
