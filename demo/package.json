@@ -8,10 +8,21 @@
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "up": "node src/cli/up.ts",
+    "serve": "node --env-file-if-exists=../.env.demo src/gateway/main.ts",
+    "agent": "node src/agent/run.ts",
+    "verify": "node src/cli/verify.ts",
+    "export": "node src/cli/export.ts",
+    "live-check": "node --env-file-if-exists=../.env.demo scripts/verify-meta-live.ts"
   },
   "dependencies": {
+    "pg": "8.23.0",
     "yaml": "2.9.1",
     "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@prysm/db": "workspace:*",
+    "@types/pg": "8.23.1"
   }
 }

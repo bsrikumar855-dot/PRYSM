@@ -18,3 +18,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 next-env.d.ts
+
+# DEMO-ONLY runtime output (anchor file, exported packs)
+demo/.anchor/
+demo/.out/
+.env.demo

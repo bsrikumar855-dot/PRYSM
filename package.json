@@ -23,7 +23,13 @@
     "db:migrate": "pnpm --filter @prysm/db migrate",
     "db:template": "pnpm --filter @prysm/db template",
     "verify:m0": "node scripts/verify-m0.mjs",
-    "test:scripts": "node --test \"scripts/**/*.test.mjs\""
+    "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
+    "demo:up": "pnpm --filter @prysm/demo run up",
+    "demo:serve": "pnpm --filter @prysm/demo run serve",
+    "demo:agent": "pnpm --filter @prysm/demo run agent",
+    "demo:verify": "pnpm --filter @prysm/demo run verify",
+    "demo:export": "pnpm --filter @prysm/demo run export",
+    "demo:live-check": "pnpm --filter @prysm/demo run live-check"
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",

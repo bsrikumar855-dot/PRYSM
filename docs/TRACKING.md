@@ -291,6 +291,8 @@ Ignition (MIT, github.com/suchitchopade3110-arch/Ignition) is a read-only refere
 
 Every `TODO(T-###)` in the codebase must appear here. CI fails on a `TODO` that has no ID or isn't registered.
 
-| ID    | Location                       | Description                                                                                                                                                                               | Milestone      |
-| ----- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| T-001 | `pnpm-workspace.yaml`, `demo/` | DEMO-ONLY hackathon workspace (Meta hackathon slice). Single-tenant, synthetic data. After the hackathon, delete it or promote the parts worth keeping into `packages/` with full tenancy | Post-hackathon |
+| ID    | Location                       | Description                                                                                                                                                                                           | Milestone      |
+| ----- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| T-001 | `pnpm-workspace.yaml`, `demo/` | DEMO-ONLY hackathon workspace (Meta hackathon slice). Single-tenant, synthetic data. After the hackathon, delete it or promote the parts worth keeping into `packages/` with full tenancy             | Post-hackathon |
+| T-002 | `eslint.config.mjs`, `demo/`   | DEMO-ONLY lint exemption: demo/ uses pg directly for its own evidence table, outside the tenant boundary. Remove with demo/                                                                           | Post-hackathon |
+| T-003 | `demo/`                        | DEMO-ONLY single-tenant mode: no authentication on the demo server's approval and tamper endpoints (loopback only), approver identity is a free-text label. Real approvals need the M1 identity layer | Post-hackathon |
