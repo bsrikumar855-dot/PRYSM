@@ -31,8 +31,19 @@ export default tseslint.config(
     rules: { 'prysm/no-raw-pool': 'off', 'prysm/db-access-in-with-tenant': 'off' },
   },
   {
+    // DEMO-ONLY exemption (TODO(T-002)): the hackathon demo owns a small Postgres table of its own and talks to it
+    // with pg directly, outside the tenant boundary that packages/db enforces. Remove when demo/ is deleted or promoted.
+    files: ['demo/**'],
+    rules: { 'prysm/no-raw-pool': 'off', 'prysm/db-access-in-with-tenant': 'off' },
+  },
+  {
     files: ['**/*.mjs', '**/*.js'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // DEMO-ONLY dashboard script (TODO(T-001)): runs in the browser, not in Node.
+    files: ['demo/web/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: globals.browser },
   },
   prettier,
 );

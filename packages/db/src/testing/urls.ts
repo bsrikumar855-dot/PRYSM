@@ -30,8 +30,17 @@ export function testDatabaseName(suite: string, nowMs: number, randomHex: string
   return name;
 }
 
-/** Creation time in epoch milliseconds parsed from a harness database name, or null if it isn't one. */
-export function testDatabaseCreatedAtMs(name: string): number | null {
-  const match = /^prysm_t_(\d{9,11})_/.exec(name);
+/**
+ * Creation time in epoch milliseconds parsed from a harness database name, or null if it isn't one. `prefix` defaults to the
+ * harness prefix; a test that needs databases the default sweep cannot see passes its own (see `isSweepPrefix`).
+ */
+export function testDatabaseCreatedAtMs(name: string, prefix: string = TEST_DATABASE_PREFIX): number | null {
+  if (!name.startsWith(prefix)) return null;
+  const match = /^(\d{9,11})_/.exec(name.slice(prefix.length));
   return match?.[1] ? Number(match[1]) * 1000 : null;
+}
+
+/** True for `prysm_<lowercase words>_`: the only shape of prefix a scoped sweep accepts, so it can never reach other databases. */
+export function isSweepPrefix(prefix: string): boolean {
+  return /^prysm_[a-z0-9_]*[a-z0-9]_$/.test(prefix) && prefix !== 'prysm_template_';
 }

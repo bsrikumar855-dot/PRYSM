@@ -1,6 +1,7 @@
 packages:
   - apps/*
   - packages/*
+  - demo # DEMO-ONLY hackathon slice (TODO(T-001))
 
 saveExact: true
 engineStrict: true
