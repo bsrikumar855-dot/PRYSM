@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import pg from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createDemoTestDatabase, type DemoTestDatabase } from '../test-support/db.ts';
+import { createTestDatabase, type TestDatabase } from '@prysm/db/testing';
 import { applyEvidenceMigration } from '../db/migrate.ts';
 import { readAnchor } from './anchor.ts';
 import { anchorOf } from './chain.ts';
@@ -20,7 +20,7 @@ import {
 
 // Runs against a throwaway clone database. In it the table owner is prysm_owner and the "app" role is prysm_app,
 // the same two roles the demo uses under different names (prysm_demo_owner / prysm_demo_app).
-let testDb: DemoTestDatabase;
+let testDb: TestDatabase;
 let app: pg.Pool;
 let owner: pg.Pool;
 let dir = '';
@@ -37,7 +37,7 @@ async function seed(n: number): Promise<void> {
 }
 
 beforeAll(async () => {
-  testDb = await createDemoTestDatabase({ suite: 'demo_evidence' });
+  testDb = await createTestDatabase({ suite: 'demo_evidence' });
   owner = new pg.Pool({ connectionString: testDb.ownerUrl, max: 3 });
   app = new pg.Pool({ connectionString: testDb.appUrl, max: 12 });
   const client = await owner.connect();
