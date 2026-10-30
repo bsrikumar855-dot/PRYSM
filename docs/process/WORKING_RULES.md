@@ -34,7 +34,7 @@ The `demo/meta-slice` branch and PR #24 are the hackathon demo. Do not touch the
   - `drizzle-kit generate` leaves no diff
 - **Security-relevant tests are proven by mutation:** break the control, show the test failing by name, restore it, show green.
 - **Migrations are forward-only.** A change is a new migration. Print the final SQL, grants and policies inline in the report.
-- **Dependencies:** exact pins, at least 7 days old, and every new direct dependency justified.
+- **Dependencies:** exact pins, at least 7 days old, and every new direct dependency justified. **Security-fix exception:** a fixed version younger than 7 days may be used only with the owner's explicit approval for that package and version.
 - **No silent stubs.** Every TODO is `TODO(T-###)` in the registry; a feature that is not available is marked unavailable.
 - **Tests use synthetic data only.** No payloads, keys or personal data in logs.
 - **TRACKING rows flip only with evidence** (a test or a CI link). Partial work is `[~]`.
