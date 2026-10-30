@@ -13,12 +13,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@opentelemetry/api": "1.9.1",
-    "@opentelemetry/sdk-node": "0.222.0",
+    "@opentelemetry/api": "1.10.0",
+    "@opentelemetry/sdk-node": "0.300.0",
     "@prysm/platform": "workspace:*",
-    "next": "16.4.1",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "next": "16.4.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@types/react": "19.3.0",
