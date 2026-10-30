@@ -24,7 +24,7 @@ The `demo/meta-slice` branch and PR #24 are the hackathon demo. Do not touch the
 
 - The CLAUDE.md principles hold: the LLM never has the final say; no uncited rule; immutable evidence; absolute tenant isolation (any cross-tenant read is P0); a fast, deterministic gateway path; privacy by default; never invent regulation text.
 - **Wording:** "control status" and "evidence of". Never state that anyone meets a law or a standard. CI enforces this.
-- **Commits:** after every small change; conventional commits; lowercase subject; body at most 100 columns. Run commitlint on the message first. Chain the checks and the commit with `&&`; never commit on a red check.
+- **Commits:** after every small change; conventional commits; lowercase subject; body at most 100 columns. Run commitlint on the message first. Chain the checks and the commit with `&&`; never commit on a red check. **Never pipe a gate through `tail`, `head` or `grep`:** read its exit code (use `set -o pipefail` where a pipe is unavoidable), because a pipe reports the last command's status and hides a failure.
 - **Checks before every push:**
   - `TURBO_FORCE=true pnpm check` (the turbo cache can hide tests)
   - commitlint over the whole branch
