@@ -78,6 +78,7 @@ pnpm check                          # format, wording + TODO checks, lint, typec
 - [Tracking: requirements, milestones, deferrals](docs/TRACKING.md)
 - [Local development runbook](docs/runbooks/local-dev.md)
 - [Agent and contributor rules](CLAUDE.md)
+- [Working rules: authority, checks, report format](docs/process/WORKING_RULES.md)
 
 ## Licence and trademarks
 

@@ -21,6 +21,7 @@ PRYSM is a continuous AI compliance operating system: it turns AI rules (laws, s
 - `docs/adr/` — decisions. Do not deviate from an _Accepted_ ADR without asking.
 - `docs/TRACKING.md` — requirement → milestone map, the TODO registry, deferrals
 - `docs/security/THREAT_MODEL.md`
+- `docs/process/WORKING_RULES.md` — authority, pre-push checks, report format and stop conditions for implementers
 
 ## Non-negotiable principles (short form)
 
