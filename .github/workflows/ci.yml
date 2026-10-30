@@ -16,6 +16,7 @@ env:
   TURBO_TELEMETRY_DISABLED: '1'
   DATABASE_URL_OWNER: postgres://prysm_owner:prysm-owner-dev-only@127.0.0.1:5432/prysm
   DATABASE_URL_APP: postgres://prysm_app:prysm-app-dev-only@127.0.0.1:5432/prysm
+  DATABASE_URL_IDENTITY: postgres://prysm_identity:prysm-identity-dev-only@127.0.0.1:5432/prysm
   VALKEY_URL: redis://127.0.0.1:6379
 
 jobs:

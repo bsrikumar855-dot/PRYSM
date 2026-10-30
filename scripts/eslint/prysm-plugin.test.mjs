@@ -46,9 +46,15 @@ tester.run('prysm/db-access-in-with-tenant', plugin.rules['db-access-in-with-ten
     { code: 'const q = request.query.page;' },
     { code: 'await cache.query("x");' },
     { code: 'withTenant(id, async (tx) => { await tx.query("x"); });' },
+    { code: 'await db.withGlobal(async (tx) => { await tx.query("select 1 from users"); });' },
   ],
   invalid: [
     { code: 'await db.query("select 1");', errors: [{ messageId: 'outside' }] },
+    {
+      // withGlobal is a sanctioned callback, but the outer handle inside it is still a bypass.
+      code: 'await db.withGlobal(async (tx) => { await db.query("select 1"); await tx.query("ok"); });',
+      errors: [{ messageId: 'outside' }],
+    },
     { code: 'await pool.query("select 1");', errors: [{ messageId: 'outside' }] },
     { code: 'const c = await pool.connect();', errors: [{ messageId: 'outside' }] },
     { code: 'await this.db.query("select 1");', errors: [{ messageId: 'outside' }] },
