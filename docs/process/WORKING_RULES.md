@@ -55,7 +55,7 @@ Always state the PR number, the head sha and "not merged".
 ## Pipeline for every milestone
 
 - **A. Plan gate.** Write `docs/plans/M<n>-<name>.md`: PR breakdown, definitions of done mapped to TRACKING ids, risks, and the ADRs needed. Open a docs PR and stop for approval. (M1's plan exists, so M1 skips this step.)
-- **B. Build in small PRs,** aiming for at most 600 changed lines excluding lockfiles and generated files, each with tests. Open the PR and stop for review. While one PR waits, the next may start on a stacked branch. At most two PRs are open at once. Never rebase without approval.
+- **B. Build in small PRs,** aiming for at most 600 changed lines excluding lockfiles and generated files, each with tests. Open the PR and stop for review. While one PR waits, the next may start on a stacked branch. At most two feature PRs are open at once; housekeeping and security PRs do not count toward that cap. Never rebase without approval.
 - **C. Milestone gate.** Implement and run the TRACKING "Gate (demo)" sentence for that milestone literally (`pnpm verify:m<n>`), report, flip rows with evidence, and stop.
 
 ## Stop conditions
