@@ -2952,8 +2952,8 @@ packages:
       babel-plugin-macros:
         optional: true
 
-  systeminformation@5.33.11:
-    resolution: {integrity: sha512-CNGk+882EQbsbPzaoxeBcYyx+nk0uTj5JzW8w0EXGSCazndNRAh9SE0V5tyMbdONGKilbIBJsyskF4WmZDk7uA==}
+  systeminformation@5.33.16:
+    resolution: {integrity: sha512-R+Lh69IJXfJj6bfyH1In5cIR9FTr4hBS39YvlZHZjsK1p9cuELPq7hplZZIb56ZESMMb+DzdKqqE6Iomi01Mvg==}
     engines: {node: '>=10.0.0'}
     os: [darwin, linux, win32, freebsd, openbsd, netbsd, sunos, android]
     hasBin: true
@@ -4089,7 +4089,7 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/instrumentation': 0.222.0(@opentelemetry/api@1.9.1)
-      systeminformation: 5.33.11
+      systeminformation: 5.33.16
     transitivePeerDependencies:
       - supports-color
 
@@ -5790,7 +5790,7 @@ snapshots:
       client-only: 0.0.1
       react: 19.3.0
 
-  systeminformation@5.33.11: {}
+  systeminformation@5.33.16: {}
 
   thread-stream@4.2.0:
     dependencies:
