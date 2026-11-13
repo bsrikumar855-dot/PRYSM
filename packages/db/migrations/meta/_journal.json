@@ -8,6 +8,34 @@
       "when": 1790307929212,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792054759160,
+      "tag": "0001_identity_and_tenancy_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792054795254,
+      "tag": "0002_rls_and_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792055584594,
+      "tag": "0003_pin_tenant_helper_search_path",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793182204390,
+      "tag": "0004_users_identity_split",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,8 @@ export interface TestDatabase {
   ownerUrl: string;
   /** Connection URL for prysm_app (what the services use at runtime). */
   appUrl: string;
+  /** Connection URL for prysm_identity (what `withGlobal` uses; the only role that may touch password columns). */
+  identityUrl: string;
   /** Drops the database, closing any connections still open to it. Safe to call twice. */
   drop(): Promise<void>;
 }
@@ -94,6 +96,7 @@ let sweptThisProcess: Promise<unknown> | undefined;
 export async function createTestDatabase({ suite }: { suite: string }): Promise<TestDatabase> {
   const ownerBase = requiredEnv('DATABASE_URL_OWNER');
   const appBase = requiredEnv('DATABASE_URL_APP');
+  const identityBase = requiredEnv('DATABASE_URL_IDENTITY');
   sweptThisProcess ??= sweepStaleTestDatabases().catch(() => undefined);
   await sweptThisProcess;
 
@@ -114,6 +117,7 @@ export async function createTestDatabase({ suite }: { suite: string }): Promise<
     name,
     ownerUrl: withDatabase(ownerBase, name),
     appUrl: withDatabase(appBase, name),
+    identityUrl: withDatabase(identityBase, name),
     drop: () => withAdmin((admin) => dropDatabase(admin, name)),
   };
 }

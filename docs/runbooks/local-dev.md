@@ -31,6 +31,10 @@ Suites that need Postgres call `createTestDatabase` from `@prysm/db/testing`. Ea
   docker exec -i <postgres container> psql -v ON_ERROR_STOP=1 -U postgres < infra/docker/postgres/init/10-test-harness.sql
   pnpm db:template
   ```
+- **`prysm_identity` (F-49):** the role `withGlobal` connects as, with `DATABASE_URL_IDENTITY` in `.env.example`. A fresh volume gets it from `00-dev-roles.sql`. On a volume created before migration 0004, run this once, before `pnpm db:migrate`, and add the variable to your `.env`:
+  ```bash
+  docker exec -i <postgres container> psql -v ON_ERROR_STOP=1 -U postgres < infra/docker/postgres/init/05-identity-role.sql
+  ```
 - **Run `pnpm db:template` again whenever a migration changes**, or clones will lack it.
 - **`DATABASE_URL_TEST_ADMIN`** (in `.env.example`) belongs to `prysm_test_admin`, a role that can create and drop databases and nothing else. It exists only in dev and CI. Never create it in a self-hosted or production database; a test fails the build if a service config, migration or app source mentions it.
 - A crashed run can leave `prysm_t_*` databases behind; the next run drops those older than an hour.

@@ -4,7 +4,7 @@ import { createPool, ping } from './pool.ts';
 import { findRlsGaps } from './rls-coverage.ts';
 import { createTestDatabase, type TestDatabase } from './testing/index.ts';
 
-const RUNTIME_ROLES = ['prysm_app', 'prysm_platform', 'prysm_gateway_outbox'];
+const RUNTIME_ROLES = ['prysm_app', 'prysm_identity', 'prysm_platform', 'prysm_gateway_outbox'];
 
 // Runs against a private clone of the migrated template, so the checks below hold for what `db:migrate`
 // produces and no other suite can see these tables.
@@ -90,32 +90,30 @@ describe('findRlsGaps', () => {
     expect(await findRlsGaps(owner)).toEqual([]);
   });
 
-  it('detects tenant tables missing RLS, FORCE, or a policy (planted gaps, rolled back)', async () => {
+  it('detects tenant tables missing RLS, FORCE, a complete policy (planted gaps, rolled back)', async () => {
     const client = await owner.connect();
+    const policy = (table: string, withCheck: boolean): string =>
+      `CREATE POLICY p ON public.${table} USING (tenant_id = current_setting('app.tenant_id', true)::uuid)` +
+      (withCheck ? " WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid)" : '');
     try {
       await client.query('BEGIN');
-      await client.query('CREATE TABLE public.t_no_rls (id int, tenant_id uuid)');
-      await client.query('CREATE TABLE public.t_not_forced (id int, tenant_id uuid)');
-      await client.query('ALTER TABLE public.t_not_forced ENABLE ROW LEVEL SECURITY');
-      await client.query(
-        "CREATE POLICY p ON public.t_not_forced USING (tenant_id = current_setting('app.tenant_id', true)::uuid)",
-      );
-      await client.query('CREATE TABLE public.t_no_policy (id int, tenant_id uuid)');
-      await client.query('ALTER TABLE public.t_no_policy ENABLE ROW LEVEL SECURITY');
-      await client.query('ALTER TABLE public.t_no_policy FORCE ROW LEVEL SECURITY');
-      await client.query('CREATE TABLE public.t_ok (id int, tenant_id uuid)');
-      await client.query('ALTER TABLE public.t_ok ENABLE ROW LEVEL SECURITY');
-      await client.query('ALTER TABLE public.t_ok FORCE ROW LEVEL SECURITY');
-      await client.query(
-        "CREATE POLICY p ON public.t_ok USING (tenant_id = current_setting('app.tenant_id', true)::uuid)",
-      );
+      for (const t of ['t_no_rls', 't_not_forced', 't_no_policy', 't_using_only', 't_ok'])
+        await client.query(`CREATE TABLE public.${t} (id int, tenant_id uuid)`);
+      for (const t of ['t_not_forced', 't_no_policy', 't_using_only', 't_ok'])
+        await client.query(`ALTER TABLE public.${t} ENABLE ROW LEVEL SECURITY`);
+      for (const t of ['t_no_policy', 't_using_only', 't_ok'])
+        await client.query(`ALTER TABLE public.${t} FORCE ROW LEVEL SECURITY`);
+      await client.query(policy('t_not_forced', true));
+      await client.query(policy('t_using_only', false));
+      await client.query(policy('t_ok', true));
       await client.query('CREATE TABLE public.t_global (id int)');
 
-      const gaps = await findRlsGaps(client);
-      expect(gaps).toEqual([
-        { table: 't_no_policy', rlsEnabled: true, rlsForced: true, policies: 0 },
-        { table: 't_no_rls', rlsEnabled: false, rlsForced: false, policies: 0 },
-        { table: 't_not_forced', rlsEnabled: true, rlsForced: false, policies: 1 },
+      const planted = (await findRlsGaps(client)).filter((g) => g.table.startsWith('t_'));
+      expect(planted).toEqual([
+        { table: 't_no_policy', rlsEnabled: true, rlsForced: true, policies: 0, completePolicies: 0 },
+        { table: 't_no_rls', rlsEnabled: false, rlsForced: false, policies: 0, completePolicies: 0 },
+        { table: 't_not_forced', rlsEnabled: true, rlsForced: false, policies: 1, completePolicies: 1 },
+        { table: 't_using_only', rlsEnabled: true, rlsForced: true, policies: 1, completePolicies: 0 },
       ]);
     } finally {
       await client.query('ROLLBACK');

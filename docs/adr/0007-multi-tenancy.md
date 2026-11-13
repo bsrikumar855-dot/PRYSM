@@ -1,6 +1,6 @@
 # ADR-0007: Multi-tenancy strategy
 
-Status: Accepted · 2026-09-24. Amended by [ADR-0013](0013-global-identity-tables.md) (global identity tables, the `g:` Valkey prefix, `withGlobal`, and the API-key lookup exception).
+Status: Accepted · 2026-09-24. **Amended by [ADR-0013](0013-global-identity-tables.md) and the 0002 policy form.** ADR-0013 adds global identity tables, the `g:` Valkey prefix, `withGlobal` and the API-key lookup exception. The policy form changed in migration `0002_rls_and_grants.sql` (search_path pinned in `0003`): policies call `(SELECT public.app_tenant_id())`, a `SECURITY INVOKER` helper, instead of the bare `current_setting('app.tenant_id', true)::uuid` cast shown below. The helper returns NULL for a missing, empty or malformed setting, because the bare cast raises on the empty string a pooled connection reports after any transaction that used `set_config(..., true)`. Behaviour is otherwise as written here: no tenant means no rows and failed writes.
 
 ## Context
 

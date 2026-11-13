@@ -10,6 +10,7 @@
       "passThroughEnv": [
         "DATABASE_URL_OWNER",
         "DATABASE_URL_APP",
+        "DATABASE_URL_IDENTITY",
         "DATABASE_URL_TEST_ADMIN",
         "VALKEY_URL",
         "S3_ENDPOINT",
